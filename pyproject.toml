@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "patchdiff"
 version = "0.1.0"
-description = ""
+description = "MIT"
 authors = ["Korijn van Golen <korijn@gmail.com>"]
 
 [tool.poetry.dependencies]
