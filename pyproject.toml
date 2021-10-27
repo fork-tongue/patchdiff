@@ -3,11 +3,20 @@ name = "patchdiff"
 version = "0.1.0"
 description = "MIT"
 authors = ["Korijn van Golen <korijn@gmail.com>"]
+homepage = "https://github.com/Korijn/patchdiff"
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.9"
 
 [tool.poetry.dev-dependencies]
+flake8 = "*"
+black = "*"
+flake8-black = "*"
+flake8-import-order = "*"
+flake8-print = "*"
+pytest = "*"
+twine = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
