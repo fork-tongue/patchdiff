@@ -1,7 +1,7 @@
 from typing import Dict, List
 
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def diff_lists(input: List, output: List):
