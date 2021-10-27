@@ -18,12 +18,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Linux py36
-            pyversion: '3.6'
-          - name: Linux py37
-            pyversion: '3.7'
-          - name: Linux py38
-            pyversion: '3.8'
           - name: Linux py39
             pyversion: '3.9'
     steps:
@@ -39,7 +33,7 @@ jobs:
       - name: Lint
         run: poetry run flake8
       - name: Test
-        run: poetry run pytest --cov=observ --cov-report=term-missing
+        run: poetry run pytest
 
   build:
     name: Build and test wheel
