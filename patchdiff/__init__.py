@@ -16,24 +16,35 @@ def diff_lists(input: List, output: List):
                 if i > 0:
                     base = dist(i - 1, j)
                     op = {"op": "remove", "idx": i - 1}
-                    paths.append({
-                        "ops": base["ops"] + [op],
-                        "cost": base["cost"] + 1,
-                    })
+                    paths.append(
+                        {
+                            "ops": base["ops"] + [op],
+                            "cost": base["cost"] + 1,
+                        }
+                    )
                 if j > 0:
                     base = dist(i, j - 1)
                     op = {"op": "add", "idx": j - 1, "value": output[j - 1]}
-                    paths.append({
-                        "ops": base["ops"] + [op],
-                        "cost": base["cost"] + 1,
-                    })
+                    paths.append(
+                        {
+                            "ops": base["ops"] + [op],
+                            "cost": base["cost"] + 1,
+                        }
+                    )
                 if i > 0 and j > 0:
                     base = dist(i - 1, j - 1)
-                    op = {"op": "replace", "idx": i - 1, "original": input[i - 1], "value": output[j - 1]}
-                    paths.append({
-                        "ops": base["ops"] + [op],
-                        "cost": base["cost"] + 1,
-                    })
+                    op = {
+                        "op": "replace",
+                        "idx": i - 1,
+                        "original": input[i - 1],
+                        "value": output[j - 1],
+                    }
+                    paths.append(
+                        {
+                            "ops": base["ops"] + [op],
+                            "cost": base["cost"] + 1,
+                        }
+                    )
                 step = min(paths, key=lambda a: a["cost"])
             memory[(i, j)] = step
         return memory[(i, j)]

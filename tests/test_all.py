@@ -17,11 +17,7 @@ def test_dicts():
         "a": 5,
         "b": 6,
     }
-    b = {
-        "a": 3,
-        "b": 6,
-        "c": 7
-    }
+    b = {"a": 3, "b": 6, "c": 7}
     ops = diff(a, b)
 
     assert len(ops) == 2
