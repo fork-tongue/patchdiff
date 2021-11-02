@@ -7,9 +7,9 @@ def test_list():
     ops = diff(a, b)
 
     assert len(ops) == 3
-    assert (ops[0]["op"], ops[0]["idx"]) == ("replace", 0)
-    assert (ops[1]["op"], ops[1]["idx"]) == ("replace", 3)
-    assert (ops[2]["op"], ops[2]["idx"]) == ("remove", 4)
+    assert (ops[0]["op"], ops[0]["path"]) == ("replace", "/0")
+    assert (ops[1]["op"], ops[1]["path"]) == ("replace", "/3")
+    assert (ops[2]["op"], ops[2]["path"]) == ("remove", "/4")
 
 
 def test_dicts():
