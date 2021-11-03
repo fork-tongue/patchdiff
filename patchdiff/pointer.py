@@ -38,9 +38,15 @@ class Pointer:
         value = obj
         for key in self.tokens[1:]:
             parent = value
+            if isinstance(parent, set):
+                value = key
+                continue
             if isinstance(parent, list):
                 key = int(key)
-            value = parent[key]
+            try:
+                value = parent[key]
+            except KeyError:
+                break
         return parent, key, value
 
     def get(self, obj: Diffable):

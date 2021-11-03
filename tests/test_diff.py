@@ -19,7 +19,7 @@ def test_list_end():
     ops = diff(a, b)
 
     assert ops == [
-        {'op': 'add', 'path': '/-', 'value': 4},
+        {"op": "add", "path": "/-", "value": 4},
     ]
 
 
