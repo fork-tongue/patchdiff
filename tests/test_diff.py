@@ -13,6 +13,16 @@ def test_list():
     ]
 
 
+def test_list_end():
+    a = [1, 2, 3]
+    b = [1, 2, 3, 4]
+    ops = diff(a, b)
+
+    assert ops == [
+        {'op': 'add', 'path': '/-', 'value': 4},
+    ]
+
+
 def test_dicts():
     a = {
         "a": 5,
