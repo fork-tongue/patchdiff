@@ -6,10 +6,11 @@ def test_list():
     b = ["sdf", 5, 9, "c"]
     ops = diff(a, b)
 
-    assert len(ops) == 3
-    assert (ops[0]["op"], ops[0]["path"]) == ("replace", "/0")
-    assert (ops[1]["op"], ops[1]["path"]) == ("replace", "/3")
-    assert (ops[2]["op"], ops[2]["path"]) == ("remove", "/4")
+    assert ops == [
+        {"op": "replace", "path": "/0", "value": "sdf"},
+        {"op": "replace", "path": "/3", "value": "c"},
+        {"op": "remove", "path": "/4"},
+    ]
 
 
 def test_dicts():
@@ -20,6 +21,33 @@ def test_dicts():
     b = {"a": 3, "b": 6, "c": 7}
     ops = diff(a, b)
 
-    assert len(ops) == 2
-    assert (ops[0]["op"], ops[0]["key"]) == ("add", "c")
-    assert (ops[1]["op"], ops[1]["value"]) == ("replace", 3)
+    assert ops == [
+        {"op": "add", "path": "/c", "key": "c", "value": 7},
+        {"op": "replace", "path": "/a", "value": 3},
+    ]
+
+
+def test_sets():
+    a = {"a", "b"}
+    b = {"a", "c"}
+    ops = diff(a, b)
+
+    assert ops == [
+        {"op": "remove", "path": "/b", "value": "b"},
+        {"op": "add", "path": "/c", "value": "c"},
+    ]
+
+
+def test_mixed():
+    a = {
+        "a": [5, 7, 9, {"a", "b", "c"}],
+        "b": 6,
+    }
+    b = {"a": [5, 2, 9, {"b", "c"}], "b": 6, "c": 7}
+    ops = diff(a, b)
+
+    assert ops == [
+        {"op": "add", "path": "/c", "key": "c", "value": 7},
+        {"op": "replace", "path": "/a/1", "value": 2},
+        {"op": "remove", "path": "/a/3/a", "value": "a"},
+    ]

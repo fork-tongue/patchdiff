@@ -25,7 +25,7 @@ class Pointer:
         self.tokens = tokens
 
     @staticmethod
-    def from_json(path: str) -> "Pointer":
+    def from_str(path: str) -> "Pointer":
         tokens = [unescape(t) for t in path.split("/")]
         return Pointer(tokens)
 

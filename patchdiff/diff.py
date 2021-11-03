@@ -100,12 +100,11 @@ def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> List:
 
 
 def diff_sets(input: Set, output: Set, ptr: Pointer) -> List:
-    # TODO: pointers?
     ops = []
     for value in input - output:
-        ops.append({"op": "remove", "value": value})
+        ops.append({"op": "remove", "path": str(ptr.append(value)), "value": value})
     for value in output - input:
-        ops.append({"op": "add", "value": value})
+        ops.append({"op": "add", "path": str(ptr.append(value)), "value": value})
     return ops
 
 
