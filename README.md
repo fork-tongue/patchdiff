@@ -10,7 +10,7 @@
 ## Quick-start
 
 ```python
-from patchdiff import apply, diff, iapply
+from patchdiff import apply, diff, iapply, to_json
 
 input = {"a": [5, 7, 9, {"a", "b", "c"}], "b": 6}
 output = {"a": [5, 2, 9, {"b", "c"}], "b": 6, "c": 7}
@@ -22,4 +22,22 @@ assert apply(output, reverse_ops) == input
 
 iapply(input, ops)  # apply in-place
 assert input == output
+
+print(to_json(ops, indent=4))
+# [
+#     {
+#         "op": "add",
+#         "path": "/c",
+#         "value": 7
+#     },
+#     {
+#         "op": "replace",
+#         "path": "/a/1",
+#         "value": 2
+#     },
+#     {
+#         "op": "remove",
+#         "path": "/a/3/a"
+#     }
+# ]
 ```
