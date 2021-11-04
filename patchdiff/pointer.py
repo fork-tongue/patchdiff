@@ -33,7 +33,7 @@ class Pointer:
         return "/" + "/".join(escape(str(t)) for t in self.tokens)
 
     def __repr__(self) -> str:
-        return f"Pointer<{str(self)}>"
+        return f"Pointer({repr(self.tokens)})"
 
     def __hash__(self) -> int:
         return hash(self.tokens)
@@ -46,19 +46,19 @@ class Pointer:
     def evaluate(self, obj: Diffable) -> Tuple[Diffable, Hashable, Any]:
         key = ""
         parent = None
-        value = obj
+        cursor = obj
         for key in self.tokens:
-            parent = value
+            parent = cursor
             if isinstance(parent, set):
-                value = key
-                continue
+                break
             if isinstance(parent, list):
-                key = int(key)
+                if key == "-":
+                    break
             try:
-                value = parent[key]
+                cursor = parent[key]
             except KeyError:
                 break
-        return parent, key, value
+        return parent, key, cursor
 
     def append(self, token: Hashable) -> "Pointer":
         """append, creating new Pointer"""

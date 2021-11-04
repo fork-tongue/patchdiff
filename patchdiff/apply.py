@@ -4,7 +4,8 @@ from typing import Dict, List
 from .types import Diffable
 
 
-def apply(obj: Diffable, patches: List[Dict]) -> Diffable:
+def iapply(obj: Diffable, patches: List[Dict]) -> Diffable:
+    """Apply a set of patches to an object, in-place"""
     for patch in patches:
         ptr = patch["path"]
         op = patch["op"]
@@ -34,3 +35,8 @@ def apply(obj: Diffable, patches: List[Dict]) -> Diffable:
             else:  # add/replace
                 parent[key] = value
     return obj
+
+
+def apply(obj: Diffable, patches: List[Dict]) -> Diffable:
+    """Apply a set of patches to a deep copy of an object"""
+    return iapply(deepcopy(obj), patches)
