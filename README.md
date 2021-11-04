@@ -3,6 +3,8 @@
 
 # Patchdiff 🔍
 
+Based on [rfc6902](https://github.com/chbrown/rfc6902) this library provides a simple API to generate bi-directional diffs between composite python datastructures composed out of lists, sets, tuples and dicts. The diffs are jsonpatch compliant, and can optionally be serialized to json format. Patchdiff can also be used to apply lists of patches to objects, both in-place or on a deepcopy of the input.
+
 ## Install
 
 `pip install patchdiff`
