@@ -1,13 +1,12 @@
 from copy import deepcopy
 from typing import Dict, List
 
-from .pointer import Pointer
 from .types import Diffable
 
 
 def apply(obj: Diffable, patches: List[Dict]) -> Diffable:
     for patch in patches:
-        ptr = Pointer.from_str(patch["path"])
+        ptr = patch["path"]
         op = patch["op"]
         parent, key, _ = ptr.evaluate(obj)
         value = None

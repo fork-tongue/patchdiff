@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import Any, Hashable, List, Tuple
 
 from .types import Diffable
 
@@ -19,9 +19,9 @@ def escape(token: str) -> str:
 
 
 class Pointer:
-    def __init__(self, tokens: List[str] = None) -> None:
+    def __init__(self, tokens: List[Hashable] = None) -> None:
         if tokens is None:
-            tokens = [""]
+            tokens = []
         self.tokens = tokens
 
     @staticmethod
@@ -30,13 +30,24 @@ class Pointer:
         return Pointer(tokens)
 
     def __str__(self) -> str:
-        return "/".join(escape(t) for t in self.tokens)
+        return "/" + "/".join(escape(str(t)) for t in self.tokens)
 
-    def evaluate(self, obj: Diffable):
+    def __repr__(self) -> str:
+        return f"Pointer<{str(self)}>"
+
+    def __hash__(self) -> int:
+        return hash(self.tokens)
+
+    def __eq__(self, other: "Pointer") -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+        return self.tokens == other.tokens
+
+    def evaluate(self, obj: Diffable) -> Tuple[Diffable, Hashable, Any]:
         key = ""
         parent = None
         value = obj
-        for key in self.tokens[1:]:
+        for key in self.tokens:
             parent = value
             if isinstance(parent, set):
                 value = key
@@ -49,20 +60,6 @@ class Pointer:
                 break
         return parent, key, value
 
-    def get(self, obj: Diffable):
-        _, _, value = self.evaluate(obj)
-        return value
-
-    def set(self, obj: Diffable, value):
-        cursor = obj
-        for key in self.tokens[1:-1]:
-            cursor = cursor[key]
-        cursor[self.tokens[-1]] = value
-
-    def iappend(self, token):
-        """append, in-place"""
-        self.tokens.append(token)
-
-    def append(self, token):
+    def append(self, token: Hashable) -> "Pointer":
         """append, creating new Pointer"""
         return Pointer(self.tokens + [token])

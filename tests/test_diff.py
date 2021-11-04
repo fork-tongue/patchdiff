@@ -1,4 +1,5 @@
 from patchdiff import diff
+from patchdiff.pointer import Pointer
 
 
 def test_list():
@@ -7,9 +8,9 @@ def test_list():
     ops = diff(a, b)
 
     assert ops == [
-        {"op": "replace", "path": "/0", "value": "sdf"},
-        {"op": "replace", "path": "/3", "value": "c"},
-        {"op": "remove", "path": "/4"},
+        {"op": "replace", "path": Pointer([0]), "value": "sdf"},
+        {"op": "replace", "path": Pointer([3]), "value": "c"},
+        {"op": "remove", "path": Pointer([4])},
     ]
 
 
@@ -19,7 +20,7 @@ def test_list_end():
     ops = diff(a, b)
 
     assert ops == [
-        {"op": "add", "path": "/-", "value": 4},
+        {"op": "add", "path": Pointer(["-"]), "value": 4},
     ]
 
 
@@ -32,8 +33,8 @@ def test_dicts():
     ops = diff(a, b)
 
     assert ops == [
-        {"op": "add", "path": "/c", "key": "c", "value": 7},
-        {"op": "replace", "path": "/a", "value": 3},
+        {"op": "add", "path": Pointer(["c"]), "key": "c", "value": 7},
+        {"op": "replace", "path": Pointer(["a"]), "value": 3},
     ]
 
 
@@ -43,8 +44,8 @@ def test_sets():
     ops = diff(a, b)
 
     assert ops == [
-        {"op": "remove", "path": "/b", "value": "b"},
-        {"op": "add", "path": "/c", "value": "c"},
+        {"op": "remove", "path": Pointer(["b"]), "value": "b"},
+        {"op": "add", "path": Pointer(["c"]), "value": "c"},
     ]
 
 
@@ -57,7 +58,7 @@ def test_mixed():
     ops = diff(a, b)
 
     assert ops == [
-        {"op": "add", "path": "/c", "key": "c", "value": 7},
-        {"op": "replace", "path": "/a/1", "value": 2},
-        {"op": "remove", "path": "/a/3/a", "value": "a"},
+        {"op": "add", "path": Pointer(["c"]), "key": "c", "value": 7},
+        {"op": "replace", "path": Pointer(["a", 1]), "value": 2},
+        {"op": "remove", "path": Pointer(["a", 3, "a"]), "value": "a"},
     ]

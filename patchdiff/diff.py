@@ -56,21 +56,21 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> List:
         ops, padding = state
         if op["op"] == "add":
             padded_idx = op["idx"] + 1 + padding
-            idx_token = str(padded_idx) if padded_idx < len(input) + padding else "-"
+            idx_token = padded_idx if padded_idx < len(input) + padding else "-"
             full_op = {
                 "op": "add",
-                "path": str(ptr.append(idx_token)),
+                "path": ptr.append(idx_token),
                 "value": op["value"],
             }
             return [ops + [full_op], padding + 1]
         elif op["op"] == "remove":
             full_op = {
                 "op": "remove",
-                "path": str(ptr.append(str(op["idx"] + padding))),
+                "path": ptr.append(op["idx"] + padding),
             }
             return [ops + [full_op], padding - 1]
         else:
-            replace_ptr = ptr.append(str(op["idx"] + padding))
+            replace_ptr = ptr.append(op["idx"] + padding)
             replace_ops = diff(op["original"], op["value"], replace_ptr)
             return [ops + replace_ops, padding]
 
@@ -84,12 +84,12 @@ def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> List:
     input_keys = set(input.keys())
     output_keys = set(output.keys())
     for key in input_keys - output_keys:
-        ops.append({"op": "remove", "path": str(ptr.append(key)), "key": key})
+        ops.append({"op": "remove", "path": ptr.append(key), "key": key})
     for key in output_keys - input_keys:
         ops.append(
             {
                 "op": "add",
-                "path": str(ptr.append(key)),
+                "path": ptr.append(key),
                 "key": key,
                 "value": output[key],
             }
@@ -102,9 +102,9 @@ def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> List:
 def diff_sets(input: Set, output: Set, ptr: Pointer) -> List:
     ops = []
     for value in input - output:
-        ops.append({"op": "remove", "path": str(ptr.append(value)), "value": value})
+        ops.append({"op": "remove", "path": ptr.append(value), "value": value})
     for value in output - input:
-        ops.append({"op": "add", "path": str(ptr.append(value)), "value": value})
+        ops.append({"op": "add", "path": ptr.append(value), "value": value})
     return ops
 
 
@@ -119,4 +119,4 @@ def diff(input: Diffable, output: Diffable, ptr: Pointer = None) -> List:
         return diff_dicts(input, output, ptr)
     if isinstance(input, set) and isinstance(output, set):
         return diff_sets(input, output, ptr)
-    return [{"op": "replace", "path": str(ptr), "value": output}]
+    return [{"op": "replace", "path": ptr, "value": output}]
