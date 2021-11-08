@@ -49,9 +49,9 @@ class Pointer:
         cursor = obj
         for key in self.tokens:
             parent = cursor
-            if isinstance(parent, set):
+            if hasattr(parent, "add"):  # set
                 break
-            if isinstance(parent, list):
+            if hasattr(parent, "append"):  # list
                 if key == "-":
                     break
             try:

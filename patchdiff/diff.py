@@ -130,11 +130,11 @@ def diff(input: Diffable, output: Diffable, ptr: Pointer = None) -> Tuple[List, 
         return [], []
     if ptr is None:
         ptr = Pointer()
-    if isinstance(input, list) and isinstance(output, list):
+    if hasattr(input, "append") and hasattr(output, "append"):  # list
         return diff_lists(input, output, ptr)
-    if isinstance(input, dict) and isinstance(output, dict):
+    if hasattr(input, "keys") and hasattr(output, "keys"):  # dict
         return diff_dicts(input, output, ptr)
-    if isinstance(input, set) and isinstance(output, set):
+    if hasattr(input, "add") and hasattr(output, "add"):  # set
         return diff_sets(input, output, ptr)
     return [{"op": "replace", "path": ptr, "value": output}], [
         {"op": "replace", "path": ptr, "value": input}
