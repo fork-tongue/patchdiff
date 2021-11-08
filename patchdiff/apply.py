@@ -13,7 +13,12 @@ def iapply(obj: Diffable, patches: List[Dict]) -> Diffable:
         value = None
         if op != "remove":
             value = deepcopy(patch["value"])
-        if isinstance(parent, list):
+        if hasattr(parent, "keys"):  # dict
+            if op == "remove":
+                del parent[key]
+            else:  # add/replace
+                parent[key] = value
+        elif hasattr(parent, "append"):  # list
             key = int(key)
             if op == "replace":
                 parent[key] = value
@@ -24,16 +29,11 @@ def iapply(obj: Diffable, patches: List[Dict]) -> Diffable:
                     parent.insert(key, value)
             else:  # remove
                 del parent[key]
-        elif isinstance(parent, set):
+        else:  # set
             if op == "add":
                 parent.add(value)
             else:  # remove
                 parent.remove(key)
-        else:  # dict
-            if op == "remove":
-                del parent[key]
-            else:  # add/replace
-                parent[key] = value
     return obj
 
 
