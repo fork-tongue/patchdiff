@@ -27,3 +27,16 @@ def test_apply():
 
     d = apply(b, rops)
     assert a == d
+
+
+def test_add_remove_list():
+    a = []
+    b = [1]
+
+    ops, rops = diff(a, b)
+
+    c = apply(a, ops)
+    assert c == b
+
+    d = apply(b, rops)
+    assert a == d
