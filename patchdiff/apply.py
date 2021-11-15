@@ -19,7 +19,11 @@ def iapply(obj: Diffable, patches: List[Dict]) -> Diffable:
             else:  # add/replace
                 parent[key] = value
         elif hasattr(parent, "append"):  # list
-            key = int(key)
+            try:
+                key = int(key)
+            except ValueError:
+                pass
+
             if op == "replace":
                 parent[key] = value
             elif op == "add":
