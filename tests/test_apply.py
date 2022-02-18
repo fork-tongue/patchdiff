@@ -1,5 +1,4 @@
 from patchdiff import apply, diff
-from patchdiff.pointer import Pointer
 
 
 def test_apply():
@@ -14,18 +13,17 @@ def test_apply():
     }
     ops, rops = diff(a, b)
 
-    assert ops == [
-        {"op": "add", "path": Pointer(["c"]), "value": 7},
-        {"op": "replace", "path": Pointer(["a", 1]), "value": 2},
-        {"op": "remove", "path": Pointer(["a", 3, "a"])},
-    ]
+    c = apply(a, ops)
+    assert c == b
 
-    assert rops == [
-        {"op": "add", "path": Pointer(["a", 3, "-"]), "value": "a"},
-        {"op": "replace", "path": Pointer(["a", 1]), "value": 7},
-        {"op": "remove", "path": Pointer(["c"])},
-    ]
+    d = apply(b, rops)
+    assert a == d
 
+
+def test_apply_list():
+    a = [1, 5, 9, "sdfsdf", "fff"]
+    b = ["sdf", 5, 9, "c"]
+    ops, rops = diff(a, b)
     c = apply(a, ops)
     assert c == b
 
@@ -76,7 +74,6 @@ def test_add_remove_list_extended_inverse():
     b = []
 
     ops, rops = diff(a, b)
-    # breakpoint()
 
     c = apply(a, ops)
     assert c == b

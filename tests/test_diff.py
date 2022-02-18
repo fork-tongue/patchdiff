@@ -20,6 +20,58 @@ def test_basic_list_deletion():
     assert rops == [{"op": "add", "path": Pointer(["-"]), "value": 1}]
 
 
+def test_basic_list_insertion_half_way():
+    a = [1, 3]
+    b = [1, 2, 3]
+    ops, rops = diff(a, b)
+
+    assert ops == [{"op": "add", "path": Pointer([1]), "value": 2}]
+    assert rops == [{"op": "remove", "path": Pointer([1])}]
+
+
+def test_basic_list_deletion_half_way():
+    a = [1, 2, 3]
+    b = [1, 3]
+    ops, rops = diff(a, b)
+
+    assert ops == [{"op": "remove", "path": Pointer([1])}]
+    assert rops == [{"op": "add", "path": Pointer([1]), "value": 2}]
+
+
+def test_basic_list_multiple_insertion():
+    a = []
+    b = [1, 2, 3]
+    ops, rops = diff(a, b)
+
+    assert ops == [
+        {"op": "add", "path": Pointer(["-"]), "value": 1},
+        {"op": "add", "path": Pointer(["-"]), "value": 2},
+        {"op": "add", "path": Pointer(["-"]), "value": 3},
+    ]
+    assert rops == [
+        {"op": "remove", "path": Pointer([0])},
+        {"op": "remove", "path": Pointer([0])},
+        {"op": "remove", "path": Pointer([0])},
+    ]
+
+
+def test_basic_list_multiple_deletion():
+    a = [1, 2, 3]
+    b = []
+    ops, rops = diff(a, b)
+
+    assert ops == [
+        {"op": "remove", "path": Pointer([0])},
+        {"op": "remove", "path": Pointer([0])},
+        {"op": "remove", "path": Pointer([0])},
+    ]
+    assert rops == [
+        {"op": "add", "path": Pointer(["-"]), "value": 1},
+        {"op": "add", "path": Pointer(["-"]), "value": 2},
+        {"op": "add", "path": Pointer(["-"]), "value": 3},
+    ]
+
+
 def test_list():
     a = [1, 5, 9, "sdfsdf", "fff"]
     b = ["sdf", 5, 9, "c"]
@@ -31,9 +83,9 @@ def test_list():
         {"op": "remove", "path": Pointer([4])},
     ]
     assert rops == [
+        {"op": "replace", "path": Pointer([0]), "value": 1},
+        {"op": "replace", "path": Pointer([3]), "value": "sdfsdf"},
         {"op": "add", "path": Pointer(["-"]), "value": "fff"},
-        {"op": "replace", "path": Pointer([4]), "value": "sdfsdf"},
-        {"op": "replace", "path": Pointer([1]), "value": 1},
     ]
 
 
@@ -103,7 +155,7 @@ def test_mixed():
         {"op": "remove", "path": Pointer(["a", 3, "a"])},
     ]
     assert rops == [
-        {"op": "add", "path": Pointer(["a", 3, "-"]), "value": "a"},
         {"op": "replace", "path": Pointer(["a", 1]), "value": 7},
+        {"op": "add", "path": Pointer(["a", 3, "-"]), "value": "a"},
         {"op": "remove", "path": Pointer(["c"])},
     ]
