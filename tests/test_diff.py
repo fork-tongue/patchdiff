@@ -2,6 +2,24 @@ from patchdiff import diff
 from patchdiff.pointer import Pointer
 
 
+def test_basic_list_insertion():
+    a = []
+    b = [1]
+    ops, rops = diff(a, b)
+
+    assert ops == [{"op": "add", "path": Pointer(["-"]), "value": 1}]
+    assert rops == [{"op": "remove", "path": Pointer([0])}]
+
+
+def test_basic_list_deletion():
+    a = [1]
+    b = []
+    ops, rops = diff(a, b)
+
+    assert ops == [{"op": "remove", "path": Pointer([0])}]
+    assert rops == [{"op": "add", "path": Pointer(["-"]), "value": 1}]
+
+
 def test_list():
     a = [1, 5, 9, "sdfsdf", "fff"]
     b = ["sdf", 5, 9, "c"]
@@ -19,22 +37,26 @@ def test_list():
     ]
 
 
+def test_list_begin():
+    a = [1, 2]
+    b = [3, 1, 2]
+    ops, rops = diff(a, b)
+
+    assert ops == [{"op": "add", "path": Pointer([0]), "value": 3}]
+    assert rops == [{"op": "remove", "path": Pointer([0])}]
+
+
 def test_list_end():
     a = [1, 2, 3]
     b = [1, 2, 3, 4]
     ops, rops = diff(a, b)
 
-    assert ops == [
-        {"op": "add", "path": Pointer(["-"]), "value": 4},
-    ]
+    assert ops == [{"op": "add", "path": Pointer(["-"]), "value": 4}]
     assert rops == [{"op": "remove", "path": Pointer([3])}]
 
 
 def test_dicts():
-    a = {
-        "a": 5,
-        "b": 6,
-    }
+    a = {"a": 5, "b": 6}
     b = {"a": 3, "b": 6, "c": 7}
     ops, rops = diff(a, b)
 
@@ -68,7 +90,11 @@ def test_mixed():
         "a": [5, 7, 9, {"a", "b", "c"}],
         "b": 6,
     }
-    b = {"a": [5, 2, 9, {"b", "c"}], "b": 6, "c": 7}
+    b = {
+        "a": [5, 2, 9, {"b", "c"}],
+        "b": 6,
+        "c": 7,
+    }
     ops, rops = diff(a, b)
 
     assert ops == [
