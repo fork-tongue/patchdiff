@@ -53,3 +53,16 @@ def test_add_remove_list_extended():
 
     d = apply(b, rops)
     assert a == d
+
+
+def test_add_remove_list_extended_inverse():
+    a = ["a", "b", "c"]
+    b = []
+
+    ops, rops = diff(a, b)
+
+    c = apply(a, ops)
+    assert c == b
+
+    d = apply(b, rops)
+    assert a == d
