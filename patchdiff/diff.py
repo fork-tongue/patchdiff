@@ -1,4 +1,4 @@
-from functools import reduce
+from functools import partial, reduce
 from typing import Dict, List, Set, Tuple
 
 from .pointer import Pointer
@@ -17,7 +17,7 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
                 if i > 0:
                     base = dist(i - 1, j)
                     op = {"op": "remove", "idx": i - 1}
-                    rop = {"op": "add", "idx": i - 1, "value": input[i - 1]}
+                    rop = {"op": "add", "idx": j - 1, "value": input[i - 1]}
                     paths.append(
                         {
                             "ops": base["ops"] + [op],
@@ -27,7 +27,7 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
                     )
                 if j > 0:
                     base = dist(i, j - 1)
-                    op = {"op": "add", "idx": j - 1, "value": output[j - 1]}
+                    op = {"op": "add", "idx": i - 1, "value": output[j - 1]}
                     rop = {"op": "remove", "idx": j - 1}
                     paths.append(
                         {
@@ -46,7 +46,7 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
                     }
                     rop = {
                         "op": "replace",
-                        "idx": i - 1,
+                        "idx": j - 1,
                         "original": output[j - 1],
                         "value": input[i - 1],
                     }
@@ -61,11 +61,11 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
             memory[(i, j)] = step
         return memory[(i, j)]
 
-    def pad(state, op):
+    def pad(state, op, target=None):
         ops, padding = state
         if op["op"] == "add":
             padded_idx = op["idx"] + 1 + padding
-            idx_token = padded_idx if padded_idx < len(input) + padding else "-"
+            idx_token = padded_idx if padded_idx < len(target) + padding else "-"
             full_op = {
                 "op": "add",
                 "path": ptr.append(idx_token),
@@ -84,8 +84,8 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
             return [ops + replace_ops, padding]
 
     solution = dist(len(input), len(output))
-    padded_ops, _ = reduce(pad, solution["ops"], [[], 0])
-    padded_rops, _ = reduce(pad, reversed(solution["rops"]), [[], 0])
+    padded_ops, _ = reduce(partial(pad, target=input), solution["ops"], [[], 0])
+    padded_rops, _ = reduce(partial(pad, target=output), solution["rops"], [[], 0])
 
     return padded_ops, padded_rops
 
