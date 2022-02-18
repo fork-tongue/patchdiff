@@ -11,6 +11,7 @@ def test_apply():
         "b": 6,
         "c": 7,
     }
+
     ops, rops = diff(a, b)
 
     c = apply(a, ops)
@@ -23,7 +24,9 @@ def test_apply():
 def test_apply_list():
     a = [1, 5, 9, "sdfsdf", "fff"]
     b = ["sdf", 5, 9, "c"]
+
     ops, rops = diff(a, b)
+
     c = apply(a, ops)
     assert c == b
 
