@@ -40,3 +40,16 @@ def test_add_remove_list():
 
     d = apply(b, rops)
     assert a == d
+
+
+def test_add_remove_list_extended():
+    a = []
+    b = ["a", "b", "c"]
+
+    ops, rops = diff(a, b)
+
+    c = apply(a, ops)
+    assert c == b
+
+    d = apply(b, rops)
+    assert a == d

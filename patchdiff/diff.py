@@ -77,7 +77,7 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
                 "op": "remove",
                 "path": ptr.append(op["idx"] + padding),
             }
-            return [ops + [full_op], padding - 1]
+            return [ops + [full_op], padding]
         else:
             replace_ptr = ptr.append(op["idx"] + padding)
             replace_ops, _ = diff(op["original"], op["value"], replace_ptr)
