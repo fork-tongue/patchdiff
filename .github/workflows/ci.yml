@@ -18,8 +18,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Linux py36
-            pyversion: '3.6'
           - name: Linux py37
             pyversion: '3.7'
           - name: Linux py38
