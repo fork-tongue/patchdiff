@@ -27,8 +27,8 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
                     )
                 if j > 0:
                     base = dist(i, j - 1)
-                    op = {"op": "add", "idx": j - 1, "value": output[j - 1]}
-                    rop = {"op": "remove", "idx": j - 1}
+                    op = {"op": "add", "idx": i - 1, "value": output[j - 1]}
+                    rop = {"op": "remove", "idx": i - 1}
                     paths.append(
                         {
                             "ops": base["ops"] + [op],
@@ -77,7 +77,7 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
                 "op": "remove",
                 "path": ptr.append(op["idx"] + padding),
             }
-            return [ops + [full_op], padding]
+            return [ops + [full_op], padding - 1]
         else:
             replace_ptr = ptr.append(op["idx"] + padding)
             replace_ops, _ = diff(op["original"], op["value"], replace_ptr)
