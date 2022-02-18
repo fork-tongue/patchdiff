@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "patchdiff"
-version = "0.3.2"
+version = "0.3.3"
 description = "MIT"
 authors = ["Korijn van Golen <korijn@gmail.com>"]
 homepage = "https://github.com/Korijn/patchdiff"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.6"
+python = ">=3.7"
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"
