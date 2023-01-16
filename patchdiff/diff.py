@@ -96,7 +96,7 @@ def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> Tuple[List, List]:
     output_keys = set(output.keys())
     for key in input_keys - output_keys:
         ops.append({"op": "remove", "path": ptr.append(key)})
-        rops.insert(0, {"op": "add", "path": ptr.append(key), "value": output[key]})
+        rops.insert(0, {"op": "add", "path": ptr.append(key), "value": input[key]})
     for key in output_keys - input_keys:
         ops.append(
             {

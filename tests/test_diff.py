@@ -159,3 +159,21 @@ def test_mixed():
         {"op": "add", "path": Pointer(["a", 3, "-"]), "value": "a"},
         {"op": "remove", "path": Pointer(["c"])},
     ]
+
+
+def test_deep_nested():
+    a = {
+        "a": [
+            {"b": 0},
+        ]
+    }
+    b = {
+        "a": [
+            {"b": 0, "c": 1},
+        ]
+    }
+
+    ops, rops = diff(a, b)
+
+    assert ops == [{"op": "add", "path": Pointer(["a", 0, "c"]), "value": 1}]
+    assert rops == [{"op": "remove", "path": Pointer(["a", 0, "c"])}]
