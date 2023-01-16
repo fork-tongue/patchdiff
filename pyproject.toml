@@ -16,6 +16,8 @@ flake8-black = "*"
 flake8-import-order = "*"
 flake8-print = "*"
 pytest = "*"
+pytest-cov = "*"
+pytest-watch = "*"
 twine = "*"
 
 [build-system]

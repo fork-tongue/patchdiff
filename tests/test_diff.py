@@ -122,6 +122,15 @@ def test_dicts():
     ]
 
 
+def test_dicts_remove_item():
+    a = {"a": 3, "b": 6}
+    b = {"a": 3}
+    ops, rops = diff(a, b)
+
+    assert ops == [{"op": "remove", "path": Pointer(["b"])}]
+    assert rops == [{"op": "add", "path": Pointer(["b"]), "value": 6}]
+
+
 def test_sets():
     a = {"a", "b"}
     b = {"a", "c"}

@@ -39,7 +39,7 @@ jobs:
       - name: Lint
         run: poetry run flake8
       - name: Test
-        run: poetry run pytest
+        run: poetry run pytest -v --cov=patchdiff --cov-report=term-missing
 
   build:
     name: Build and test wheel
