@@ -26,7 +26,7 @@ class Pointer:
 
     @staticmethod
     def from_str(path: str) -> "Pointer":
-        tokens = [unescape(t) for t in path.split("/")]
+        tokens = [unescape(t) for t in path.split("/")[1:]]
         return Pointer(tokens)
 
     def __str__(self) -> str:
@@ -36,7 +36,7 @@ class Pointer:
         return f"Pointer({repr(self.tokens)})"
 
     def __hash__(self) -> int:
-        return hash(self.tokens)
+        return hash(tuple(self.tokens))
 
     def __eq__(self, other: "Pointer") -> bool:
         if not isinstance(other, self.__class__):
