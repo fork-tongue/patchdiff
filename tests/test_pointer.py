@@ -40,3 +40,7 @@ def test_pointer_eq():
     assert Pointer([1]) != Pointer(["1"])
     assert Pointer([1]) != Pointer([0])
     assert Pointer([1]) == Pointer([1])
+
+
+def test_pointer_append():
+    assert Pointer([1]).append("foo") == Pointer([1, "foo"])
