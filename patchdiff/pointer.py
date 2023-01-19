@@ -22,18 +22,18 @@ class Pointer:
     def __init__(self, tokens: List[Hashable] = None) -> None:
         if tokens is None:
             tokens = []
-        self.tokens = tokens
+        self.tokens = tuple(tokens)
 
     @staticmethod
     def from_str(path: str) -> "Pointer":
-        tokens = [unescape(t) for t in path.split("/")]
+        tokens = [unescape(t) for t in path.split("/")[1:]]
         return Pointer(tokens)
 
     def __str__(self) -> str:
         return "/" + "/".join(escape(str(t)) for t in self.tokens)
 
     def __repr__(self) -> str:
-        return f"Pointer({repr(self.tokens)})"
+        return f"Pointer({repr(list(self.tokens))})"
 
     def __hash__(self) -> int:
         return hash(self.tokens)
@@ -62,4 +62,4 @@ class Pointer:
 
     def append(self, token: Hashable) -> "Pointer":
         """append, creating new Pointer"""
-        return Pointer(self.tokens + [token])
+        return Pointer(self.tokens + (token,))

@@ -1,3 +1,3 @@
-from typing import Dict, List, Set, Tuple, Union
+from typing import Dict, List, Set, Union
 
-Diffable = Union[Dict, List, Set, Tuple]
+Diffable = Union[Dict, List, Set]
