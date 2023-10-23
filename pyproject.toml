@@ -7,9 +7,9 @@ homepage = "https://github.com/fork-tongue/patchdiff"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.7"
+python = ">=3.8"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 flake8 = "*"
 black = "*"
 flake8-black = "*"
@@ -21,5 +21,5 @@ pytest-watch = "*"
 twine = "*"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
