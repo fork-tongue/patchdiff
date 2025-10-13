@@ -1,25 +1,30 @@
-[tool.poetry]
+[project]
 name = "patchdiff"
 version = "0.3.4"
 description = "MIT"
-authors = ["Korijn van Golen <korijn@gmail.com>", "Berend Klein Haneveld <berendkleinhaneveld@gmail.com>"]
-homepage = "https://github.com/fork-tongue/patchdiff"
+authors = [
+    { name = "Korijn van Golen", email = "korijn@gmail.com" },
+    { name = "Berend Klein Haneveld", email = "berendkleinhaneveld@gmail.com" },
+]
+requires-python = ">=3.8"
 readme = "README.md"
 
-[tool.poetry.dependencies]
-python = ">=3.8"
+[project.urls]
+Homepage = "https://github.com/fork-tongue/patchdiff"
 
-[tool.poetry.group.dev.dependencies]
-flake8 = "*"
-black = "*"
-flake8-black = "*"
-flake8-import-order = "*"
-flake8-print = "*"
-pytest = "*"
-pytest-cov = "*"
-pytest-watch = "*"
-twine = "*"
+[dependency-groups]
+dev = [
+    "flake8",
+    "black",
+    "flake8-black",
+    "flake8-import-order",
+    "flake8-print",
+    "pytest",
+    "pytest-cov",
+    "pytest-watch",
+    "twine",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
