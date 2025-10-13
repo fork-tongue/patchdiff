@@ -14,16 +14,24 @@ Homepage = "https://github.com/fork-tongue/patchdiff"
 
 [dependency-groups]
 dev = [
-    "flake8",
-    "black",
-    "flake8-black",
-    "flake8-import-order",
-    "flake8-print",
+    "ruff",
     "pytest",
     "pytest-cov",
     "pytest-watch",
-    "twine",
 ]
+
+[tool.ruff.lint]
+extend-select = [
+    "F",    # Pyflakes (default)
+    "I",    # isort imports
+    "N",    # pep8-naming
+    "T10",  # flake8-debugger
+    "T20",  # flake8-print
+    "RUF",  # ruff
+]
+
+[tool.ruff.lint.per-file-ignores]
+"patchdiff/__init__.py" = ["F401"]
 
 [build-system]
 requires = ["hatchling"]

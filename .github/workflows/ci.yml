@@ -43,7 +43,9 @@ jobs:
       - name: Install dependencies
         run: uv sync
       - name: Lint
-        run: uv run flake8
+        run: uv run ruff check
+      - name: Format
+        run: uv run ruff format --check
       - name: Test
         run: uv run pytest -v --cov=patchdiff --cov-report=term-missing
 
@@ -63,7 +65,7 @@ jobs:
     - name: Build wheel
       run: uv build
     - name: Twine check
-      run: uv run twine check dist/*
+      run: uvx twine check dist/*
     - name: Upload wheel artifact
       uses: actions/upload-artifact@v4
       with:
