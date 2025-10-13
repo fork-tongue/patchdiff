@@ -1,6 +1,6 @@
 [project]
 name = "patchdiff"
-version = "0.3.4"
+version = "0.3.5"
 description = "MIT"
 authors = [
     { name = "Korijn van Golen", email = "korijn@gmail.com" },
