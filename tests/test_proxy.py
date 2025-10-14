@@ -2,6 +2,7 @@
 Tests that check that patchdiff apply and diff work
 on proxied objects.
 """
+
 from collections import UserDict, UserList
 from collections.abc import Set
 

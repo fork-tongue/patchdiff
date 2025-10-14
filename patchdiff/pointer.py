@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import re
 from typing import Any, Hashable, List, Tuple
 
 from .types import Diffable
-
 
 tilde0_re = re.compile("~0")
 tilde1_re = re.compile("~1")
@@ -19,7 +20,7 @@ def escape(token: str) -> str:
 
 
 class Pointer:
-    def __init__(self, tokens: List[Hashable] = None) -> None:
+    def __init__(self, tokens: List[Hashable] | None = None) -> None:
         if tokens is None:
             tokens = []
         self.tokens = tuple(tokens)
@@ -33,7 +34,7 @@ class Pointer:
         return "/" + "/".join(escape(str(t)) for t in self.tokens)
 
     def __repr__(self) -> str:
-        return f"Pointer({repr(list(self.tokens))})"
+        return f"Pointer({list(self.tokens)!r})"
 
     def __hash__(self) -> int:
         return hash(self.tokens)
@@ -62,4 +63,4 @@ class Pointer:
 
     def append(self, token: Hashable) -> "Pointer":
         """append, creating new Pointer"""
-        return Pointer(self.tokens + (token,))
+        return Pointer((*self.tokens, token))
