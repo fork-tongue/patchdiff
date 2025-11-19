@@ -1,4 +1,5 @@
-from functools import partial, reduce
+from __future__ import annotations
+
 from typing import Dict, List, Set, Tuple
 
 from .pointer import Pointer
@@ -6,86 +7,129 @@ from .types import Diffable
 
 
 def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
-    memory = {(0, 0): {"ops": [], "rops": [], "cost": 0}}
+    m, n = len(input), len(output)
 
-    def dist(i, j):
-        if (i, j) not in memory:
-            if i > 0 and j > 0 and input[i - 1] == output[j - 1]:
-                step = dist(i - 1, j - 1)
+    # Build DP table bottom-up (iterative approach)
+    # dp[i][j] = cost of transforming input[0:i] to output[0:j]
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+
+    # Initialize base cases
+    for i in range(1, m + 1):
+        dp[i][0] = i  # Cost of deleting all elements
+    for j in range(1, n + 1):
+        dp[0][j] = j  # Cost of adding all elements
+
+    # Fill DP table
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if input[i - 1] == output[j - 1]:
+                # Elements match, no operation needed
+                dp[i][j] = dp[i - 1][j - 1]
             else:
-                paths = []
-                if i > 0:
-                    base = dist(i - 1, j)
-                    op = {"op": "remove", "idx": i - 1}
-                    rop = {"op": "add", "idx": j - 1, "value": input[i - 1]}
-                    paths.append(
-                        {
-                            "ops": base["ops"] + [op],
-                            "rops": base["rops"] + [rop],
-                            "cost": base["cost"] + 1,
-                        }
-                    )
-                if j > 0:
-                    base = dist(i, j - 1)
-                    op = {"op": "add", "idx": i - 1, "value": output[j - 1]}
-                    rop = {"op": "remove", "idx": j - 1}
-                    paths.append(
-                        {
-                            "ops": base["ops"] + [op],
-                            "rops": base["rops"] + [rop],
-                            "cost": base["cost"] + 1,
-                        }
-                    )
-                if i > 0 and j > 0:
-                    base = dist(i - 1, j - 1)
-                    op = {
-                        "op": "replace",
-                        "idx": i - 1,
-                        "original": input[i - 1],
-                        "value": output[j - 1],
-                    }
-                    rop = {
-                        "op": "replace",
-                        "idx": j - 1,
-                        "original": output[j - 1],
-                        "value": input[i - 1],
-                    }
-                    paths.append(
-                        {
-                            "ops": base["ops"] + [op],
-                            "rops": base["rops"] + [rop],
-                            "cost": base["cost"] + 1,
-                        }
-                    )
-                step = min(paths, key=lambda a: a["cost"])
-            memory[(i, j)] = step
-        return memory[(i, j)]
+                # Take minimum of three operations
+                dp[i][j] = min(
+                    dp[i - 1][j] + 1,  # Remove from input
+                    dp[i][j - 1] + 1,  # Add from output
+                    dp[i - 1][j - 1] + 1,  # Replace
+                )
 
-    def pad(state, op, target=None):
-        ops, padding = state
+    # Traceback to extract operations
+    ops = []
+    rops = []
+    i, j = m, n
+
+    while i > 0 or j > 0:
+        if i > 0 and j > 0 and input[i - 1] == output[j - 1]:
+            # Elements match, no operation
+            i -= 1
+            j -= 1
+        elif i > 0 and (j == 0 or dp[i][j] == dp[i - 1][j] + 1):
+            # Remove from input
+            ops.append({"op": "remove", "idx": i - 1})
+            rops.append({"op": "add", "idx": j - 1, "value": input[i - 1]})
+            i -= 1
+        elif j > 0 and (i == 0 or dp[i][j] == dp[i][j - 1] + 1):
+            # Add from output
+            ops.append({"op": "add", "idx": i - 1, "value": output[j - 1]})
+            rops.append({"op": "remove", "idx": j - 1})
+            j -= 1
+        else:
+            # Replace
+            ops.append(
+                {
+                    "op": "replace",
+                    "idx": i - 1,
+                    "original": input[i - 1],
+                    "value": output[j - 1],
+                }
+            )
+            rops.append(
+                {
+                    "op": "replace",
+                    "idx": j - 1,
+                    "original": output[j - 1],
+                    "value": input[i - 1],
+                }
+            )
+            i -= 1
+            j -= 1
+
+    # Apply padding to operations (using explicit loops instead of reduce)
+    padded_ops = []
+    padding = 0
+    # Iterate in reverse to get correct order (traceback extracts operations backwards)
+    for op in reversed(ops):
         if op["op"] == "add":
             padded_idx = op["idx"] + 1 + padding
-            idx_token = padded_idx if padded_idx < len(target) + padding else "-"
-            full_op = {
-                "op": "add",
-                "path": ptr.append(idx_token),
-                "value": op["value"],
-            }
-            return [[*ops, full_op], padding + 1]
+            idx_token = padded_idx if padded_idx < len(input) + padding else "-"
+            padded_ops.append(
+                {
+                    "op": "add",
+                    "path": ptr.append(idx_token),
+                    "value": op["value"],
+                }
+            )
+            padding += 1
         elif op["op"] == "remove":
-            full_op = {
-                "op": "remove",
-                "path": ptr.append(op["idx"] + padding),
-            }
-            return [[*ops, full_op], padding - 1]
-        else:
+            padded_ops.append(
+                {
+                    "op": "remove",
+                    "path": ptr.append(op["idx"] + padding),
+                }
+            )
+            padding -= 1
+        else:  # replace
             replace_ptr = ptr.append(op["idx"] + padding)
             replace_ops, _ = diff(op["original"], op["value"], replace_ptr)
-            return [ops + replace_ops, padding]
+            padded_ops.extend(replace_ops)
 
-    solution = dist(len(input), len(output))
-    padded_ops, _ = reduce(partial(pad, target=input), solution["ops"], [[], 0])
-    padded_rops, _ = reduce(partial(pad, target=output), solution["rops"], [[], 0])
+    padded_rops = []
+    padding = 0
+    # Iterate in reverse to get correct order (traceback extracts operations backwards)
+    for op in reversed(rops):
+        if op["op"] == "add":
+            padded_idx = op["idx"] + 1 + padding
+            idx_token = padded_idx if padded_idx < len(output) + padding else "-"
+            padded_rops.append(
+                {
+                    "op": "add",
+                    "path": ptr.append(idx_token),
+                    "value": op["value"],
+                }
+            )
+            padding += 1
+        elif op["op"] == "remove":
+            padded_rops.append(
+                {
+                    "op": "remove",
+                    "path": ptr.append(op["idx"] + padding),
+                }
+            )
+            padding -= 1
+        else:  # replace
+            replace_ptr = ptr.append(op["idx"] + padding)
+            replace_ops, _ = diff(op["original"], op["value"], replace_ptr)
+            padded_rops.extend(replace_ops)
 
     return padded_ops, padded_rops
 
@@ -125,7 +169,9 @@ def diff_sets(input: Set, output: Set, ptr: Pointer) -> Tuple[List, List]:
     return ops, rops
 
 
-def diff(input: Diffable, output: Diffable, ptr: Pointer = None) -> Tuple[List, List]:
+def diff(
+    input: Diffable, output: Diffable, ptr: Pointer | None = None
+) -> Tuple[List, List]:
     if input == output:
         return [], []
     if ptr is None:
