@@ -55,7 +55,8 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           if [ -z "$(uv run --no-sync pytest-benchmark list)" ]; then
-            echo "No baseline found, skip the benchmark"
+            echo "No baseline found, not comparing"
+            uv run --no-sync pytest -v benchmarks/benchmark.py
             exit
           fi
 
