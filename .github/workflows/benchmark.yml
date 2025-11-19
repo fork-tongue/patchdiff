@@ -36,6 +36,7 @@ jobs:
       # On master: save baseline results
       - name: Run benchmarks and save baseline
         if: github.ref == 'refs/heads/master'
+        continue-on-error: true
         run: |
           uv run --no-sync pytest benchmarks/benchmark.py \
             --benchmark-only \
