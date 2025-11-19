@@ -18,6 +18,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-watch",
+    "pytest-benchmark",
 ]
 
 [tool.ruff.lint]
