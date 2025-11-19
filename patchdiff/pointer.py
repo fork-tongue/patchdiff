@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Hashable, List, Tuple
+from typing import Any, Hashable, Iterable, Tuple
 
 from .types import Diffable
 
@@ -20,7 +20,7 @@ def escape(token: str) -> str:
 
 
 class Pointer:
-    def __init__(self, tokens: List[Hashable] | None = None) -> None:
+    def __init__(self, tokens: Iterable[Hashable] | None = None) -> None:
         if tokens is None:
             tokens = []
         self.tokens = tuple(tokens)
