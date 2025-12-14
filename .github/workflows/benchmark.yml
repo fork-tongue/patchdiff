@@ -31,7 +31,7 @@ jobs:
           git checkout origin/master -- patchdiff/
 
           # Run benchmarks with master code as baseline
-          uv run --no-sync pytest benchmarks \
+          uv run --no-sync pytest benchmarks/benchmark.py \
               --benchmark-only \
               --benchmark-save=master \
               --benchmark-sort=mean || true
@@ -40,7 +40,7 @@ jobs:
           git checkout HEAD -- patchdiff/
 
           # Run benchmarks on PR code and compare
-          uv run --no-sync pytest benchmarks \
+          uv run --no-sync pytest benchmarks/benchmark.py \
               --benchmark-only \
               --benchmark-compare \
               --benchmark-compare-fail=mean:5% \
