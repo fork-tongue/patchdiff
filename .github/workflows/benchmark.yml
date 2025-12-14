@@ -26,9 +26,9 @@ jobs:
       # On PRs: run benchmarks twice (PR code vs master code) and compare
       - name: Run benchmarks
         run: |
-          # Checkout master version of observ directory
+          # Checkout master version of patchdiff directory
           git fetch origin master
-          git checkout origin/master -- observ/
+          git checkout origin/master -- patchdiff/
 
           # Run benchmarks with master code as baseline
           uv run --no-sync pytest bench \
@@ -37,7 +37,7 @@ jobs:
               --benchmark-sort=mean || true
 
           # Restore PR code
-          git checkout HEAD -- observ/
+          git checkout HEAD -- patchdiff/
 
           # Run benchmarks on PR code and compare
           uv run --no-sync pytest bench \
