@@ -197,7 +197,17 @@ def test_apply_list_1000_elements(benchmark):
 @pytest.mark.benchmark(group="pointer")
 def test_pointer_evaluate_deeply_nested(benchmark):
     """Benchmark: Evaluate pointer on deeply nested structure."""
-    obj = generate_nested_dict(5, 5)
+    obj = {
+        "key_0": {
+            "key_1": {
+                "key_2": {
+                    "key_3": {
+                        "key_4": 42
+                    }
+                }
+            }
+        }
+    }
     ptr = Pointer.from_str("/key_0/key_1/key_2/key_3/key_4")
 
     benchmark(ptr.evaluate, obj)
@@ -206,8 +216,8 @@ def test_pointer_evaluate_deeply_nested(benchmark):
 @pytest.mark.benchmark(group="pointer")
 def test_pointer_evaluate_large_list(benchmark):
     """Benchmark: Evaluate pointer on large list."""
-    obj = generate_random_list(10000)
-    ptr = Pointer.from_str("/5000")
+    obj = [i for i in range(10000)]
+    ptr = Pointer([5000])
 
     benchmark(ptr.evaluate, obj)
 

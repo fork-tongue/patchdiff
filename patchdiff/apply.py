@@ -6,6 +6,8 @@ from .types import Diffable
 
 def iapply(obj: Diffable, patches: List[Dict]) -> Diffable:
     """Apply a set of patches to an object, in-place"""
+    if not patches:
+        return obj
     for patch in patches:
         ptr = patch["path"]
         op = patch["op"]

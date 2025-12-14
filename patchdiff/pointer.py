@@ -20,6 +20,8 @@ def escape(token: str) -> str:
 
 
 class Pointer:
+    __slots__ = ("tokens",)
+
     def __init__(self, tokens: Iterable[Hashable] | None = None) -> None:
         if tokens is None:
             tokens = []
@@ -40,7 +42,7 @@ class Pointer:
         return hash(self.tokens)
 
     def __eq__(self, other: "Pointer") -> bool:
-        if not isinstance(other, self.__class__):
+        if other.__class__ != self.__class__:
             return False
         return self.tokens == other.tokens
 
@@ -48,16 +50,14 @@ class Pointer:
         key = ""
         parent = None
         cursor = obj
-        for key in self.tokens:
+        if not (tokens := self.tokens):
+            return parent, key, cursor
+        for key in tokens:
             parent = cursor
-            if hasattr(parent, "add"):  # set
-                break
-            if hasattr(parent, "append"):  # list
-                if key == "-":
-                    break
             try:
                 cursor = parent[key]
-            except KeyError:
+            except (KeyError, TypeError):
+                # KeyError for dicts, TypeError for sets and lists
                 break
         return parent, key, cursor
 
