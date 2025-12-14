@@ -51,13 +51,13 @@ class Pointer:
         parent = None
         cursor = obj
         if tokens := self.tokens:
-            for key in tokens:
-                parent = cursor
-                try:
+            try:
+                for key in tokens:
+                    parent = cursor
                     cursor = parent[key]
-                except (KeyError, TypeError):
-                    # KeyError for dicts, TypeError for sets and lists
-                    break
+            except (KeyError, TypeError):
+                # KeyError for dicts, TypeError for sets and lists
+                pass
         return parent, key, cursor
 
     def append(self, token: Hashable) -> "Pointer":

@@ -1,9 +1,6 @@
 name: Benchmarks
 
 on:
-  push:
-    branches:
-      - master
   pull_request:
     branches:
       - master
@@ -21,49 +18,39 @@ jobs:
       - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: "3.14"
 
       - name: Install dependencies
         run: uv sync
 
-      # Restore benchmark baseline (read-only for PRs)
-      - name: Restore benchmark baseline
-        uses: actions/cache/restore@v4
-        with:
-          path: .benchmarks
-          key: benchmark-baseline-3.14-${{ runner.os }}
-
-      # On master: save baseline results
-      - name: Run benchmarks and save baseline
-        if: github.ref == 'refs/heads/master'
-        continue-on-error: true
+      # On PRs: run benchmarks twice (PR code vs master code) and compare
+      - name: Run benchmarks
         run: |
-          uv run --no-sync pytest benchmarks/benchmark.py \
-            --benchmark-only \
-            --benchmark-autosave \
-            --benchmark-sort=name
+          # Checkout master version of observ directory
+          git fetch origin master
+          git checkout origin/master -- observ/
 
-      # On master: cache the new baseline results
-      - name: Save benchmark baseline
-        if: github.ref == 'refs/heads/master'
-        uses: actions/cache/save@v4
-        with:
-          path: .benchmarks
-          key: benchmark-baseline-3.14-${{ runner.os }}
+          # Run benchmarks with master code as baseline
+          uv run --no-sync pytest bench \
+              --benchmark-only \
+              --benchmark-save=master \
+              --benchmark-sort=mean || true
 
-      # On PRs: compare against baseline and fail if degraded
-      - name: Run benchmarks and compare
-        if: github.event_name == 'pull_request'
-        run: |
-          if [ -z "$(uv run --no-sync pytest-benchmark list)" ]; then
-            echo "No baseline found, not comparing"
-            uv run --no-sync pytest -v benchmarks/benchmark.py
-            exit
-          fi
+          # Restore PR code
+          git checkout HEAD -- observ/
 
-          uv run --no-sync pytest benchmarks/benchmark.py \
+          # Run benchmarks on PR code and compare
+          uv run --no-sync pytest bench \
               --benchmark-only \
               --benchmark-compare \
               --benchmark-compare-fail=mean:5% \
-              --benchmark-sort=name
+              --benchmark-save=branch \
+              --benchmark-sort=mean
 
+      - name: Upload benchmarks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Benchmarks
+          path: .benchmarks/
+          include-hidden-files: true
