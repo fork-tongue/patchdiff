@@ -19,6 +19,7 @@ import random
 import pytest
 
 from patchdiff import apply, diff
+from patchdiff.pointer import Pointer
 
 # Set seed for reproducibility
 random.seed(42)
@@ -140,6 +141,27 @@ def test_dict_diff_nested(benchmark):
 
 
 # ========================================
+# Set Diff Benchmarks
+# ========================================
+
+
+@pytest.mark.benchmark(group="set-diff")
+def test_set_diff_1000_elements(benchmark):
+    """Benchmark: Sets with 1000 elements, 10% difference."""
+    a = set(generate_random_list(1000, 2000))
+    b = a.copy()
+    # Remove 5%
+    a_list = list(a)
+    for i in range(50):
+        a.remove(a_list[i])
+    # Add 5%
+    for i in range(50):
+        b.add(2000 + i)
+
+    benchmark(diff, a, b)
+
+
+# ========================================
 # Mixed Structure Benchmarks
 # ========================================
 
@@ -164,3 +186,47 @@ def test_apply_list_1000_elements(benchmark):
     ops, _ = diff(a, b)
 
     benchmark(apply, a, ops)
+
+
+# ========================================
+# Pointer Evaluate Benchmarks
+# ========================================
+
+
+@pytest.mark.benchmark(group="pointer-evaluate")
+def test_pointer_evaluate_deep_dict(benchmark):
+    """Benchmark: Evaluate pointer on deeply nested structure."""
+    depth = 100
+    obj = 42
+    for i in range(depth - 1, -1, -1):
+        obj = {f"key_{i}": obj}
+    ptr = Pointer([f"key_{i}" for i in range(depth)])
+
+    benchmark(ptr.evaluate, obj)
+
+
+@pytest.mark.benchmark(group="pointer-evaluate")
+def test_pointer_evaluate_deep_list(benchmark):
+    """Benchmark: Evaluate pointer on deep lists."""
+    # Build nested lists 100 levels deep; innermost value is 42.
+    depth = 100
+    nested = 42
+    for _ in range(depth):
+        nested = [nested]
+    obj = nested
+    ptr = Pointer([0] * depth)
+
+    benchmark(ptr.evaluate, obj)
+
+
+# ========================================
+# Pointer Append Benchmarks
+# ========================================
+
+
+@pytest.mark.benchmark(group="pointer-append")
+def test_pointer_append(benchmark):
+    """Benchmark: Append token to pointer."""
+    ptr = Pointer.from_str("/a/b/c/d/e/f/g/h/i/j")
+
+    benchmark(ptr.append, "k")
