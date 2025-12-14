@@ -50,15 +50,14 @@ class Pointer:
         key = ""
         parent = None
         cursor = obj
-        if not (tokens := self.tokens):
-            return parent, key, cursor
-        for key in tokens:
-            parent = cursor
-            try:
-                cursor = parent[key]
-            except (KeyError, TypeError):
-                # KeyError for dicts, TypeError for sets and lists
-                break
+        if tokens := self.tokens:
+            for key in tokens:
+                parent = cursor
+                try:
+                    cursor = parent[key]
+                except (KeyError, TypeError):
+                    # KeyError for dicts, TypeError for sets and lists
+                    break
         return parent, key, cursor
 
     def append(self, token: Hashable) -> "Pointer":
