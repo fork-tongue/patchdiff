@@ -138,12 +138,12 @@ def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> Tuple[List, List]:
     ops, rops = [], []
     input_keys = set(input.keys()) if input else set()
     output_keys = set(output.keys()) if output else set()
-    if (input_only := input_keys - output_keys):
+    if input_only := input_keys - output_keys:
         for key in input_only:
             key_ptr = ptr.append(key)
             ops.append({"op": "remove", "path": key_ptr})
             rops.insert(0, {"op": "add", "path": key_ptr, "value": input[key]})
-    if (output_only := output_keys - input_keys):
+    if output_only := output_keys - input_keys:
         for key in output_only:
             key_ptr = ptr.append(key)
             ops.append(
@@ -154,7 +154,7 @@ def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> Tuple[List, List]:
                 }
             )
             rops.insert(0, {"op": "remove", "path": key_ptr})
-    if (common := input_keys & output_keys):
+    if common := input_keys & output_keys:
         for key in common:
             key_ops, key_rops = diff(input[key], output[key], ptr.append(key))
             ops.extend(key_ops)
@@ -165,11 +165,11 @@ def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> Tuple[List, List]:
 
 def diff_sets(input: Set, output: Set, ptr: Pointer) -> Tuple[List, List]:
     ops, rops = [], []
-    if (input_only := input - output):
+    if input_only := input - output:
         for value in input_only:
             ops.append({"op": "remove", "path": ptr.append(value)})
             rops.insert(0, {"op": "add", "path": ptr.append("-"), "value": value})
-    if (output_only := output - input):
+    if output_only := output - input:
         for value in output_only:
             ops.append({"op": "add", "path": ptr.append("-"), "value": value})
             rops.insert(0, {"op": "remove", "path": ptr.append(value)})
