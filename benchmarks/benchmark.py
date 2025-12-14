@@ -189,11 +189,11 @@ def test_apply_list_1000_elements(benchmark):
 
 
 # ========================================
-# Pointer Benchmarks
+# Pointer Evaluate Benchmarks
 # ========================================
 
 
-@pytest.mark.benchmark(group="pointer")
+@pytest.mark.benchmark(group="pointer-evaluate")
 def test_pointer_evaluate_deep_dict(benchmark):
     """Benchmark: Evaluate pointer on deeply nested structure."""
     depth = 100
@@ -205,7 +205,7 @@ def test_pointer_evaluate_deep_dict(benchmark):
     benchmark(ptr.evaluate, obj)
 
 
-@pytest.mark.benchmark(group="pointer")
+@pytest.mark.benchmark(group="pointer-evaluate")
 def test_pointer_evaluate_deep_list(benchmark):
     """Benchmark: Evaluate pointer on deep lists."""
     # Build nested lists 100 levels deep; innermost value is 42.
@@ -219,7 +219,12 @@ def test_pointer_evaluate_deep_list(benchmark):
     benchmark(ptr.evaluate, obj)
 
 
-@pytest.mark.benchmark(group="pointer")
+# ========================================
+# Pointer Append Benchmarks
+# ========================================
+
+
+@pytest.mark.benchmark(group="pointer-append")
 def test_pointer_append(benchmark):
     """Benchmark: Append token to pointer."""
     ptr = Pointer.from_str("/a/b/c/d/e/f/g/h/i/j")
