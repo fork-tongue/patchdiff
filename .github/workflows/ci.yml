@@ -41,7 +41,7 @@ jobs:
         with:
           python-version: ${{ matrix.pyversion }}
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --group observ
       - name: Lint
         run: uv run ruff check
       - name: Format
@@ -61,7 +61,7 @@ jobs:
       with:
         python-version: '3.9'
     - name: Install dependencies
-      run: uv sync
+      run: uv sync --group observ
     - name: Build wheel
       run: uv build
     - name: Twine check

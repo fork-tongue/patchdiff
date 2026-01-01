@@ -21,7 +21,7 @@ jobs:
           python-version: "3.14"
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --group observ
 
       # On PRs: run benchmarks twice (PR code vs master code) and compare
       - name: Run benchmarks
