@@ -58,16 +58,17 @@ class DictProxy:
         object.__setattr__(self, "_proxies", {})
 
     def _wrap(self, key: Any, value: Any) -> Any:
-        """Wrap nested structures in proxies."""
-        if isinstance(value, dict):
+        """Wrap nested structures in proxies using duck typing."""
+        # Use duck typing to support observ reactive objects and other proxies
+        if hasattr(value, "keys"):  # dict-like
             if key not in self._proxies:
                 self._proxies[key] = DictProxy(value, self._recorder, self._path.append(key))
             return self._proxies[key]
-        elif isinstance(value, list):
+        elif hasattr(value, "append"):  # list-like
             if key not in self._proxies:
                 self._proxies[key] = ListProxy(value, self._recorder, self._path.append(key))
             return self._proxies[key]
-        elif isinstance(value, set):
+        elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
             if key not in self._proxies:
                 self._proxies[key] = SetProxy(value, self._recorder, self._path.append(key))
             return self._proxies[key]
@@ -170,16 +171,17 @@ class ListProxy:
         object.__setattr__(self, "_proxies", {})
 
     def _wrap(self, index: int, value: Any) -> Any:
-        """Wrap nested structures in proxies."""
-        if isinstance(value, dict):
+        """Wrap nested structures in proxies using duck typing."""
+        # Use duck typing to support observ reactive objects and other proxies
+        if hasattr(value, "keys"):  # dict-like
             if index not in self._proxies:
                 self._proxies[index] = DictProxy(value, self._recorder, self._path.append(index))
             return self._proxies[index]
-        elif isinstance(value, list):
+        elif hasattr(value, "append"):  # list-like
             if index not in self._proxies:
                 self._proxies[index] = ListProxy(value, self._recorder, self._path.append(index))
             return self._proxies[index]
-        elif isinstance(value, set):
+        elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
             if index not in self._proxies:
                 self._proxies[index] = SetProxy(value, self._recorder, self._path.append(index))
             return self._proxies[index]
@@ -351,19 +353,25 @@ def produce(
         [{"op": "replace", "path": "/count", "value": 1},
          {"op": "add", "path": "/items/-", "value": "new"}]
     """
+    # Unwrap observ reactive objects to get the underlying data
+    # Observ proxies have a __target__ attribute that points to the raw data
+    if hasattr(base, "__target__"):
+        base = base.__target__
+
     # Create a deep copy of the base object
     draft = copy.deepcopy(base)
 
     # Create a patch recorder
     recorder = PatchRecorder()
 
-    # Wrap the draft in a proxy
+    # Wrap the draft in a proxy using duck typing (similar to diff())
+    # This allows compatibility with observ reactive objects and other proxies
     path = Pointer()
-    if isinstance(draft, dict):
+    if hasattr(draft, "keys"):  # dict-like
         proxy = DictProxy(draft, recorder, path)
-    elif isinstance(draft, list):
+    elif hasattr(draft, "append"):  # list-like
         proxy = ListProxy(draft, recorder, path)
-    elif isinstance(draft, set):
+    elif hasattr(draft, "add"):  # set-like
         proxy = SetProxy(draft, recorder, path)
     else:
         raise TypeError(f"Unsupported type for produce: {type(draft)}")
