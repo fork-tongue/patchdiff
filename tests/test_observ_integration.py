@@ -3,7 +3,7 @@
 import pytest
 
 try:
-    from observ import reactive
+    from observ import reactive, watch
 
     OBSERV_AVAILABLE = True
 except ImportError:
@@ -91,3 +91,76 @@ class TestObservIntegration:
         # But the original should be unchanged
         assert state["count"] == 0
         assert original_state["count"] == 0
+
+    def test_produce_in_place_mutates_original(self):
+        """Test that produce(in_place=True) mutates the original object."""
+        state = {"count": 0, "items": [1, 2, 3]}
+
+        def recipe(draft):
+            draft["count"] = 10
+            draft["items"].append(4)
+
+        result, patches, reverse = produce(state, recipe, in_place=True)
+
+        # Result should be the same object
+        assert result is state
+        # Original should be mutated
+        assert state["count"] == 10
+        assert state["items"] == [1, 2, 3, 4]
+        # Patches should still be generated
+        assert len(patches) == 2
+
+    def test_produce_in_place_with_reactive_mutates_state(self):
+        """Test that produce(in_place=True) mutates reactive objects directly."""
+        state = reactive({"count": 0, "name": "Alice"})
+
+        def recipe(draft):
+            draft["count"] = 5
+            draft["name"] = "Bob"
+
+        result, patches, reverse = produce(state, recipe, in_place=True)
+
+        # Result should be the same object
+        assert result is state
+        # State should be mutated
+        assert state["count"] == 5
+        assert state["name"] == "Bob"
+        # Patches should be generated
+        assert len(patches) == 2
+        assert patches[0]["op"] == "replace"
+        assert patches[0]["value"] == 5
+
+    def test_produce_in_place_with_nested_reactive(self):
+        """Test that produce(in_place=True) works with nested reactive structures."""
+        state = reactive({"user": {"name": "Alice", "age": 30}, "count": 0})
+
+        def recipe(draft):
+            draft["user"]["age"] = 31
+            draft["count"] = 1
+
+        result, patches, reverse = produce(state, recipe, in_place=True)
+
+        # State should be mutated
+        assert state["user"]["age"] == 31
+        assert state["count"] == 1
+        # Result is the same object
+        assert result is state
+        # Patches should be generated
+        assert len(patches) == 2
+
+    def test_produce_in_place_with_reactive_list(self):
+        """Test that produce(in_place=True) works with reactive lists."""
+        state = reactive([1, 2, 3])
+
+        def recipe(draft):
+            draft.append(4)
+            draft[0] = 10
+
+        result, patches, reverse = produce(state, recipe, in_place=True)
+
+        # State should be mutated
+        assert state == [10, 2, 3, 4]
+        # Result is the same object
+        assert result is state
+        # Patches should be generated
+        assert len(patches) == 2

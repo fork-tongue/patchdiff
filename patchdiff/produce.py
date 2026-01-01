@@ -329,7 +329,7 @@ class SetProxy:
 
 
 def produce(
-    base: Any, recipe: Callable[[Any], None]
+    base: Any, recipe: Callable[[Any], None], in_place: bool = False
 ) -> Tuple[Any, List[Dict], List[Dict]]:
     """
     Produce a new state by applying mutations, tracking patches along the way.
@@ -340,10 +340,13 @@ def produce(
     Args:
         base: The base object to mutate (dict, list, or set)
         recipe: A function that receives a proxy-wrapped draft and mutates it
+        in_place: If True, mutate the original object directly (useful for
+                  reactive objects like observ). If False (default), operate
+                  on a deep copy and leave the original unchanged.
 
     Returns:
         A tuple of (result, patches, reverse_patches) where:
-        - result: The mutated copy of the base object
+        - result: The mutated object (same as base if in_place=True)
         - patches: List of patches representing the mutations
         - reverse_patches: List of patches to reverse the mutations
 
@@ -358,14 +361,25 @@ def produce(
         >>> print(patches)
         [{"op": "replace", "path": "/count", "value": 1},
          {"op": "add", "path": "/items/-", "value": "new"}]
-    """
-    # Unwrap observ reactive objects to get the underlying data
-    # Use observ's to_raw() function if available
-    if observ_to_raw is not None:
-        base = observ_to_raw(base)
 
-    # Create a deep copy of the base object
-    draft = copy.deepcopy(base)
+    Example with in_place=True for reactive objects:
+        >>> from observ import reactive
+        >>> state = reactive({"count": 0})
+        >>> result, patches, reverse = produce(state, lambda d: d.__setitem__("count", 5), in_place=True)
+        >>> # state["count"] is now 5, and watchers were triggered
+    """
+    if in_place:
+        # Mutate the original object directly
+        # Don't unwrap or copy - use the base object as-is
+        draft = base
+    else:
+        # Unwrap observ reactive objects to get the underlying data
+        # Use observ's to_raw() function if available
+        if observ_to_raw is not None:
+            base = observ_to_raw(base)
+
+        # Create a deep copy of the base object
+        draft = copy.deepcopy(base)
 
     # Create a patch recorder
     recorder = PatchRecorder()
