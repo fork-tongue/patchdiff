@@ -12,6 +12,12 @@ from typing import Any, Callable, Dict, List, Set, Tuple
 
 from .pointer import Pointer
 
+# Optional observ integration
+try:
+    from observ import to_raw as observ_to_raw
+except ImportError:
+    observ_to_raw = None
+
 
 class PatchRecorder:
     """Records patches as mutations happen on proxy objects."""
@@ -354,9 +360,9 @@ def produce(
          {"op": "add", "path": "/items/-", "value": "new"}]
     """
     # Unwrap observ reactive objects to get the underlying data
-    # Observ proxies have a __target__ attribute that points to the raw data
-    if hasattr(base, "__target__"):
-        base = base.__target__
+    # Use observ's to_raw() function if available
+    if observ_to_raw is not None:
+        base = observ_to_raw(base)
 
     # Create a deep copy of the base object
     draft = copy.deepcopy(base)
