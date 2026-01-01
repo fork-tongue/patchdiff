@@ -14,11 +14,12 @@ Fail if performance degrades >5%:
     uv run pytest benchmarks/benchmark.py --benchmark-only --benchmark-compare=0001 --benchmark-compare-fail=mean:5%
 """
 
+import copy
 import random
 
 import pytest
 
-from patchdiff import apply, diff
+from patchdiff import apply, diff, produce
 from patchdiff.pointer import Pointer
 
 # Set seed for reproducibility
@@ -230,3 +231,250 @@ def test_pointer_append(benchmark):
     ptr = Pointer.from_str("/a/b/c/d/e/f/g/h/i/j")
 
     benchmark(ptr.append, "k")
+
+
+# ========================================
+# Produce vs Diff Comparison Benchmarks
+# ========================================
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-dict")
+def test_diff_dict_small_mutations(benchmark):
+    """Benchmark: diff() on dict with small mutations (baseline)."""
+    base = {f"key_{i}": i for i in range(100)}
+
+    def run():
+        result = copy.deepcopy(base)
+        result["key_10"] = 999
+        result["new_key"] = "new_value"
+        del result["key_50"]
+        return diff(base, result)
+
+    benchmark(run)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-dict")
+def test_produce_dict_small_mutations(benchmark):
+    """Benchmark: produce() on dict with small mutations."""
+    base = {f"key_{i}": i for i in range(100)}
+
+    def recipe(draft):
+        draft["key_10"] = 999
+        draft["new_key"] = "new_value"
+        del draft["key_50"]
+
+    benchmark(produce, base, recipe)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-dict")
+def test_diff_dict_many_mutations(benchmark):
+    """Benchmark: diff() on dict with many mutations (baseline)."""
+    base = {f"key_{i}": i for i in range(1000)}
+
+    def run():
+        result = copy.deepcopy(base)
+        # Modify 20% of keys
+        for i in range(200):
+            result[f"key_{i}"] = i + 10000
+        # Add 10% new keys
+        for i in range(100):
+            result[f"new_key_{i}"] = i
+        # Remove 10% of keys
+        for i in range(100):
+            del result[f"key_{i + 200}"]
+        return diff(base, result)
+
+    benchmark(run)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-dict")
+def test_produce_dict_many_mutations(benchmark):
+    """Benchmark: produce() on dict with many mutations."""
+    base = {f"key_{i}": i for i in range(1000)}
+
+    def recipe(draft):
+        # Modify 20% of keys
+        for i in range(200):
+            draft[f"key_{i}"] = i + 10000
+        # Add 10% new keys
+        for i in range(100):
+            draft[f"new_key_{i}"] = i
+        # Remove 10% of keys
+        for i in range(100):
+            del draft[f"key_{i + 200}"]
+
+    benchmark(produce, base, recipe)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-list")
+def test_diff_list_small_mutations(benchmark):
+    """Benchmark: diff() on list with small mutations (baseline)."""
+    base = list(range(100))
+
+    def run():
+        result = copy.deepcopy(base)
+        result.append(999)
+        result.insert(10, 888)
+        result[50] = 777
+        del result[20]
+        return diff(base, result)
+
+    benchmark(run)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-list")
+def test_produce_list_small_mutations(benchmark):
+    """Benchmark: produce() on list with small mutations."""
+    base = list(range(100))
+
+    def recipe(draft):
+        draft.append(999)
+        draft.insert(10, 888)
+        draft[50] = 777
+        del draft[20]
+
+    benchmark(produce, base, recipe)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-list")
+def test_diff_list_many_appends(benchmark):
+    """Benchmark: diff() on list with many appends (baseline)."""
+    base = list(range(100))
+
+    def run():
+        result = copy.deepcopy(base)
+        for i in range(100):
+            result.append(i + 1000)
+        return diff(base, result)
+
+    benchmark(run)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-list")
+def test_produce_list_many_appends(benchmark):
+    """Benchmark: produce() on list with many appends."""
+    base = list(range(100))
+
+    def recipe(draft):
+        for i in range(100):
+            draft.append(i + 1000)
+
+    benchmark(produce, base, recipe)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-nested")
+def test_diff_nested_structure(benchmark):
+    """Benchmark: diff() on nested dict/list structure (baseline)."""
+    base = {
+        "users": [{"name": f"User{i}", "age": 20 + i, "tags": set(range(i, i + 5))} for i in range(50)]
+    }
+
+    def run():
+        result = copy.deepcopy(base)
+        result["users"][10]["age"] = 99
+        result["users"][10]["tags"].add(999)
+        result["users"].append({"name": "NewUser", "age": 25, "tags": {1, 2, 3}})
+        result["admin"] = True
+        return diff(base, result)
+
+    benchmark(run)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-nested")
+def test_produce_nested_structure(benchmark):
+    """Benchmark: produce() on nested dict/list structure."""
+    base = {
+        "users": [{"name": f"User{i}", "age": 20 + i, "tags": set(range(i, i + 5))} for i in range(50)]
+    }
+
+    def recipe(draft):
+        draft["users"][10]["age"] = 99
+        draft["users"][10]["tags"].add(999)
+        draft["users"].append({"name": "NewUser", "age": 25, "tags": {1, 2, 3}})
+        draft["admin"] = True
+
+    benchmark(produce, base, recipe)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-set")
+def test_diff_set_mutations(benchmark):
+    """Benchmark: diff() on set with mutations (baseline)."""
+    base = set(range(500))
+
+    def run():
+        result = copy.deepcopy(base)
+        for i in range(50):
+            result.add(i + 1000)
+        for i in range(50):
+            result.discard(i)
+        return diff(base, result)
+
+    benchmark(run)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-set")
+def test_produce_set_mutations(benchmark):
+    """Benchmark: produce() on set with mutations."""
+    base = set(range(500))
+
+    def recipe(draft):
+        for i in range(50):
+            draft.add(i + 1000)
+        for i in range(50):
+            draft.discard(i)
+
+    benchmark(produce, base, recipe)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-deep")
+def test_diff_deep_nested_mutation(benchmark):
+    """Benchmark: diff() with deep nested mutation (baseline)."""
+    base = {"level1": {"level2": {"level3": {"level4": {"data": list(range(100))}}}}}
+
+    def run():
+        result = copy.deepcopy(base)
+        result["level1"]["level2"]["level3"]["level4"]["data"].append(999)
+        return diff(base, result)
+
+    benchmark(run)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-deep")
+def test_produce_deep_nested_mutation(benchmark):
+    """Benchmark: produce() with deep nested mutation."""
+    base = {"level1": {"level2": {"level3": {"level4": {"data": list(range(100))}}}}}
+
+    def recipe(draft):
+        draft["level1"]["level2"]["level3"]["level4"]["data"].append(999)
+
+    benchmark(produce, base, recipe)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-sparse")
+def test_diff_sparse_mutations_large_object(benchmark):
+    """Benchmark: diff() with sparse mutations on large object (baseline)."""
+    base = {f"key_{i}": list(range(100)) for i in range(100)}
+
+    def run():
+        result = copy.deepcopy(base)
+        # Only mutate 3 keys out of 100
+        result["key_10"][0] = 999
+        result["key_50"][50] = 888
+        result["key_90"][90] = 777
+        return diff(base, result)
+
+    benchmark(run)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-sparse")
+def test_produce_sparse_mutations_large_object(benchmark):
+    """Benchmark: produce() with sparse mutations on large object."""
+    base = {f"key_{i}": list(range(100)) for i in range(100)}
+
+    def recipe(draft):
+        # Only mutate 3 keys out of 100
+        draft["key_10"][0] = 999
+        draft["key_50"][50] = 888
+        draft["key_90"][90] = 777
+
+    benchmark(produce, base, recipe)
