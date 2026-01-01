@@ -22,6 +22,13 @@ import pytest
 from patchdiff import apply, diff, produce
 from patchdiff.pointer import Pointer
 
+# Optional observ integration for benchmarks
+try:
+    from observ import reactive, to_raw
+    OBSERV_AVAILABLE = True
+except ImportError:
+    OBSERV_AVAILABLE = False
+
 # Set seed for reproducibility
 random.seed(42)
 
@@ -478,3 +485,175 @@ def test_produce_sparse_mutations_large_object(benchmark):
         draft["key_90"][90] = 777
 
     benchmark(produce, base, recipe)
+
+
+# ========================================
+# Observ + produce(in_place=True) Benchmarks
+# ========================================
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-diff")
+def test_diff_observ_dict_mutations(benchmark):
+    """Benchmark: diff() on observ reactive dict (baseline)."""
+    base_data = {f"key_{i}": i for i in range(100)}
+
+    def run():
+        state = reactive(base_data.copy())
+        result = reactive(base_data.copy())
+        result["key_10"] = 999
+        result["new_key"] = "new_value"
+        del result["key_50"]
+        return diff(to_raw(state), to_raw(result))
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-produce")
+def test_produce_observ_dict_mutations_copy(benchmark):
+    """Benchmark: produce() on observ reactive dict (copy mode)."""
+    base_data = {f"key_{i}": i for i in range(100)}
+
+    def run():
+        state = reactive(base_data.copy())
+
+        def recipe(draft):
+            draft["key_10"] = 999
+            draft["new_key"] = "new_value"
+            del draft["key_50"]
+
+        return produce(state, recipe, in_place=False)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-produce")
+def test_produce_observ_dict_mutations_in_place(benchmark):
+    """Benchmark: produce() on observ reactive dict (in_place=True)."""
+    base_data = {f"key_{i}": i for i in range(100)}
+
+    def run():
+        state = reactive(base_data.copy())
+
+        def recipe(draft):
+            draft["key_10"] = 999
+            draft["new_key"] = "new_value"
+            del draft["key_50"]
+
+        return produce(state, recipe, in_place=True)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-nested")
+def test_diff_observ_nested_structure(benchmark):
+    """Benchmark: diff() on nested observ reactive structure (baseline)."""
+    base_data = {
+        "users": [{"name": f"User{i}", "age": 20 + i} for i in range(50)],
+        "settings": {"theme": "light"},
+    }
+
+    def run():
+        state = reactive(base_data.copy())
+        result = reactive(base_data.copy())
+        result["users"][10]["age"] = 99
+        result["settings"]["theme"] = "dark"
+        result["admin"] = True
+        return diff(to_raw(state), to_raw(result))
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-nested")
+def test_produce_observ_nested_in_place(benchmark):
+    """Benchmark: produce(in_place=True) on nested observ reactive structure."""
+    base_data = {
+        "users": [{"name": f"User{i}", "age": 20 + i} for i in range(50)],
+        "settings": {"theme": "light"},
+    }
+
+    def run():
+        state = reactive(base_data.copy())
+
+        def recipe(draft):
+            draft["users"][10]["age"] = 99
+            draft["settings"]["theme"] = "dark"
+            draft["admin"] = True
+
+        return produce(state, recipe, in_place=True)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-list")
+def test_produce_observ_list_many_appends_copy(benchmark):
+    """Benchmark: produce() on observ reactive list (copy mode)."""
+
+    def run():
+        state = reactive(list(range(100)))
+
+        def recipe(draft):
+            for i in range(100):
+                draft.append(i + 1000)
+
+        return produce(state, recipe, in_place=False)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-list")
+def test_produce_observ_list_many_appends_in_place(benchmark):
+    """Benchmark: produce(in_place=True) on observ reactive list."""
+
+    def run():
+        state = reactive(list(range(100)))
+
+        def recipe(draft):
+            for i in range(100):
+                draft.append(i + 1000)
+
+        return produce(state, recipe, in_place=True)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-performance")
+def test_produce_in_place_vs_copy_dict(benchmark):
+    """Benchmark: Compare in_place=True vs in_place=False for dict."""
+    base_data = {f"key_{i}": i for i in range(1000)}
+
+    def run():
+        state = reactive(base_data.copy())
+
+        def recipe(draft):
+            for i in range(100):
+                draft[f"key_{i}"] = i + 10000
+
+        return produce(state, recipe, in_place=True)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-performance")
+def test_produce_copy_mode_dict(benchmark):
+    """Benchmark: produce() with in_place=False for comparison."""
+    base_data = {f"key_{i}": i for i in range(1000)}
+
+    def run():
+        state = reactive(base_data.copy())
+
+        def recipe(draft):
+            for i in range(100):
+                draft[f"key_{i}"] = i + 10000
+
+        return produce(state, recipe, in_place=False)
+
+    benchmark(run)
