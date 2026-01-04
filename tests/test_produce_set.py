@@ -257,3 +257,56 @@ def test_set_iter():
     result, patches, reverse = produce(base, recipe)
 
     assert result == base
+
+
+def test_set_isdisjoint():
+    """Test isdisjoint() method on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        assert draft.isdisjoint({4, 5, 6})
+        assert not draft.isdisjoint({2, 4})
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_set_issubset():
+    """Test issubset() method on set proxy."""
+    base = {1, 2}
+
+    def recipe(draft):
+        assert draft.issubset({1, 2, 3})
+        assert not draft.issubset({1})
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_set_issuperset():
+    """Test issuperset() method on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        assert draft.issuperset({1, 2})
+        assert not draft.issuperset({1, 2, 4})
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_set_copy():
+    """Test copy() method on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        copied = draft.copy()
+        assert copied == {1, 2, 3}
+        assert isinstance(copied, set)
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base

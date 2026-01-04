@@ -318,3 +318,31 @@ def test_dict_values():
     result, patches, reverse = produce(base, recipe)
 
     assert result["total"] == 6
+
+
+def test_dict_reversed():
+    """Test __reversed__ on dict proxy."""
+    base = {"a": 1, "b": 2, "c": 3}
+
+    def recipe(draft):
+        keys = list(reversed(draft))
+        # Reversed iteration order (insertion order in reverse)
+        assert len(keys) == 3
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_dict_copy():
+    """Test copy() method on dict proxy."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        copied = draft.copy()
+        assert copied == {"a": 1, "b": 2}
+        assert isinstance(copied, dict)
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base

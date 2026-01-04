@@ -310,3 +310,30 @@ def test_list_sort_with_key():
     result, patches, reverse = produce(base, recipe)
 
     assert result == ["a", "pie", "apple", "cherry"]
+
+
+def test_list_reversed():
+    """Test __reversed__ on list proxy."""
+    base = [1, 2, 3, 4]
+
+    def recipe(draft):
+        rev = list(reversed(draft))
+        assert rev == [4, 3, 2, 1]
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_list_copy():
+    """Test copy() method on list proxy."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        copied = draft.copy()
+        assert copied == [1, 2, 3]
+        assert isinstance(copied, list)
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base

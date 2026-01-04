@@ -11,13 +11,29 @@ import copy
 from typing import Any, Callable, Dict, List, Set, Tuple
 
 from .pointer import Pointer
-from .traps import add_reader_methods
 
 # Optional observ integration
 try:
     from observ import to_raw as observ_to_raw
 except ImportError:
     observ_to_raw = None
+
+
+def _add_reader_methods(proxy_class, method_names):
+    """Add simple pass-through reader methods to a proxy class.
+
+    These methods don't modify the object and just pass through to _data.
+    """
+    def _make_reader(name):
+        def reader(self, *args, **kwargs):
+            method = getattr(self._data, name)
+            return method(*args, **kwargs)
+        reader.__name__ = name
+        reader.__qualname__ = f"{proxy_class.__name__}.{name}"
+        return reader
+
+    for method_name in method_names:
+        setattr(proxy_class, method_name, _make_reader(method_name))
 
 
 class PatchRecorder:
@@ -153,10 +169,10 @@ class DictProxy:
         return key, value
 
 
-# Add simple reader methods to DictProxy using traps
-add_reader_methods(DictProxy, [
-    '__len__', '__contains__', '__repr__', '__iter__',
-    'keys', 'values', 'items',
+# Add simple reader methods to DictProxy
+_add_reader_methods(DictProxy, [
+    '__len__', '__contains__', '__repr__', '__iter__', '__reversed__',
+    'keys', 'values', 'items', 'copy',
 ])
 
 
@@ -285,10 +301,10 @@ class ListProxy:
         self._proxies.clear()
 
 
-# Add simple reader methods to ListProxy using traps
-add_reader_methods(ListProxy, [
-    '__len__', '__contains__', '__repr__', '__iter__',
-    'index', 'count',
+# Add simple reader methods to ListProxy
+_add_reader_methods(ListProxy, [
+    '__len__', '__contains__', '__repr__', '__iter__', '__reversed__',
+    'index', 'count', 'copy',
 ])
 
 
@@ -366,10 +382,11 @@ class SetProxy:
         return self
 
 
-# Add simple reader methods to SetProxy using traps
-add_reader_methods(SetProxy, [
+# Add simple reader methods to SetProxy
+_add_reader_methods(SetProxy, [
     '__len__', '__contains__', '__repr__', '__iter__',
     'union', 'intersection', 'difference', 'symmetric_difference',
+    'isdisjoint', 'issubset', 'issuperset', 'copy',
 ])
 
 
