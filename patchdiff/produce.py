@@ -11,17 +11,7 @@ import copy
 from typing import Any, Callable, Dict, List, Set, Tuple
 
 from .pointer import Pointer
-from .traps import (
-    DICT_ITERATORS,
-    DICT_KEYREADERS,
-    DICT_READERS,
-    LIST_ITERATORS,
-    LIST_READERS,
-    SET_ITERATORS,
-    SET_READERS,
-    construct_reader_methods,
-    reader_trap,
-)
+from .traps import add_reader_methods
 
 # Optional observ integration
 try:
@@ -164,7 +154,10 @@ class DictProxy:
 
 
 # Add simple reader methods to DictProxy using traps
-construct_reader_methods(DictProxy, DICT_READERS + DICT_ITERATORS + ['values', 'items'])
+add_reader_methods(DictProxy, [
+    '__len__', '__contains__', '__repr__', '__iter__',
+    'keys', 'values', 'items',
+])
 
 
 class ListProxy:
@@ -293,7 +286,10 @@ class ListProxy:
 
 
 # Add simple reader methods to ListProxy using traps
-construct_reader_methods(ListProxy, LIST_READERS + LIST_ITERATORS)
+add_reader_methods(ListProxy, [
+    '__len__', '__contains__', '__repr__', '__iter__',
+    'index', 'count',
+])
 
 
 class SetProxy:
@@ -371,7 +367,10 @@ class SetProxy:
 
 
 # Add simple reader methods to SetProxy using traps
-construct_reader_methods(SetProxy, SET_READERS + SET_ITERATORS)
+add_reader_methods(SetProxy, [
+    '__len__', '__contains__', '__repr__', '__iter__',
+    'union', 'intersection', 'difference', 'symmetric_difference',
+])
 
 
 def produce(
