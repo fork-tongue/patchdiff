@@ -318,10 +318,13 @@ def test_list_reversed():
 
     def recipe(draft):
         rev = list(reversed(draft))
+        # Verify reversed returns elements in reverse order
         assert rev == [4, 3, 2, 1]
 
     result, patches, reverse = produce(base, recipe)
 
+    # No mutations, so no patches
+    assert patches == []
     assert result == base
 
 
@@ -331,9 +334,15 @@ def test_list_copy():
 
     def recipe(draft):
         copied = draft.copy()
+        # Verify copy returns a real list with same contents
         assert copied == [1, 2, 3]
         assert isinstance(copied, list)
+        # Verify it's a different object (not a proxy)
+        copied.append(4)
+        # This mutation is on the copy, not the draft
 
     result, patches, reverse = produce(base, recipe)
 
+    # No mutations to draft, so no patches
+    assert patches == []
     assert result == base

@@ -264,11 +264,14 @@ def test_set_isdisjoint():
     base = {1, 2, 3}
 
     def recipe(draft):
-        assert draft.isdisjoint({4, 5, 6})
-        assert not draft.isdisjoint({2, 4})
+        # Verify isdisjoint works correctly
+        assert draft.isdisjoint({4, 5, 6}) is True
+        assert draft.isdisjoint({2, 4}) is False
 
     result, patches, reverse = produce(base, recipe)
 
+    # No mutations, so no patches
+    assert patches == []
     assert result == base
 
 
@@ -277,11 +280,14 @@ def test_set_issubset():
     base = {1, 2}
 
     def recipe(draft):
-        assert draft.issubset({1, 2, 3})
-        assert not draft.issubset({1})
+        # Verify issubset works correctly
+        assert draft.issubset({1, 2, 3}) is True
+        assert draft.issubset({1}) is False
 
     result, patches, reverse = produce(base, recipe)
 
+    # No mutations, so no patches
+    assert patches == []
     assert result == base
 
 
@@ -290,11 +296,14 @@ def test_set_issuperset():
     base = {1, 2, 3}
 
     def recipe(draft):
-        assert draft.issuperset({1, 2})
-        assert not draft.issuperset({1, 2, 4})
+        # Verify issuperset works correctly
+        assert draft.issuperset({1, 2}) is True
+        assert draft.issuperset({1, 2, 4}) is False
 
     result, patches, reverse = produce(base, recipe)
 
+    # No mutations, so no patches
+    assert patches == []
     assert result == base
 
 
@@ -304,9 +313,15 @@ def test_set_copy():
 
     def recipe(draft):
         copied = draft.copy()
+        # Verify copy returns a real set with same contents
         assert copied == {1, 2, 3}
         assert isinstance(copied, set)
+        # Verify it's a different object (not a proxy)
+        copied.add(4)
+        # This mutation is on the copy, not the draft
 
     result, patches, reverse = produce(base, recipe)
 
+    # No mutations to draft, so no patches
+    assert patches == []
     assert result == base

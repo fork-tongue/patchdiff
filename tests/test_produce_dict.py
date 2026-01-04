@@ -326,11 +326,13 @@ def test_dict_reversed():
 
     def recipe(draft):
         keys = list(reversed(draft))
-        # Reversed iteration order (insertion order in reverse)
-        assert len(keys) == 3
+        # Verify reversed returns keys in reverse insertion order
+        assert keys == ["c", "b", "a"]
 
     result, patches, reverse = produce(base, recipe)
 
+    # No mutations, so no patches
+    assert patches == []
     assert result == base
 
 
@@ -340,9 +342,15 @@ def test_dict_copy():
 
     def recipe(draft):
         copied = draft.copy()
+        # Verify copy returns a real dict with same contents
         assert copied == {"a": 1, "b": 2}
         assert isinstance(copied, dict)
+        # Verify it's a different object (not a proxy)
+        copied["new"] = 3
+        # This mutation is on the copy, not the draft
 
     result, patches, reverse = produce(base, recipe)
 
+    # No mutations to draft, so no patches
+    assert patches == []
     assert result == base
