@@ -278,6 +278,43 @@ class ListProxy:
         for value in values:
             self.append(value)
 
+    def __contains__(self, value: Any) -> bool:
+        return value in self._data
+
+    def index(self, value: Any, *args) -> int:
+        return self._data.index(value, *args)
+
+    def count(self, value: Any) -> int:
+        return self._data.count(value)
+
+    def reverse(self) -> None:
+        """Reverse the list in place and generate appropriate patches."""
+        # Record the old state
+        old_list = list(self._data)
+        # Reverse the underlying data
+        self._data.reverse()
+        # Generate patches for each changed position
+        for i in range(len(self._data)):
+            if i < len(old_list) and old_list[i] != self._data[i]:
+                path = self._path.append(i)
+                self._recorder.record_replace(path, old_list[i], self._data[i])
+        # Invalidate all proxy caches as positions changed
+        self._proxies.clear()
+
+    def sort(self, *args, **kwargs) -> None:
+        """Sort the list in place and generate appropriate patches."""
+        # Record the old state
+        old_list = list(self._data)
+        # Sort the underlying data
+        self._data.sort(*args, **kwargs)
+        # Generate patches for each changed position
+        for i in range(len(self._data)):
+            if i < len(old_list) and old_list[i] != self._data[i]:
+                path = self._path.append(i)
+                self._recorder.record_replace(path, old_list[i], self._data[i])
+        # Invalidate all proxy caches as positions changed
+        self._proxies.clear()
+
     def __repr__(self):
         return f"ListProxy({self._data!r})"
 
