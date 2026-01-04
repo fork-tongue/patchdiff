@@ -3,7 +3,6 @@
 import pytest
 
 from patchdiff import apply, produce
-from patchdiff.pointer import Pointer
 
 
 def test_deeply_nested_mutation():
@@ -14,7 +13,7 @@ def test_deeply_nested_mutation():
         draft["a"]["b"]["c"].append(4)
         draft["a"]["b"]["d"] = "new"
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {"a": {"b": {"c": [1, 2, 3, 4], "d": "new"}}}
     assert len(patches) == 2
@@ -29,7 +28,7 @@ def test_mixed_operations():
         draft["users"][0]["tags"].add("rust")
         draft["users"].append({"name": "Charlie", "tags": set()})
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result["users"][0]["name"] == "Bob"
     assert "rust" in result["users"][0]["tags"]
@@ -46,7 +45,7 @@ def test_original_unchanged():
         draft["b"].append(3)
         draft["c"].add(5)
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     # Original should be unchanged
     assert base == {"a": 1, "b": [1, 2], "c": {3, 4}}
@@ -62,7 +61,7 @@ def test_patches_apply_correctly():
         draft["count"] = 5
         draft["items"].extend([1, 2, 3])
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     # Apply patches to base should give us the result
     applied = apply(base, patches)
@@ -78,7 +77,7 @@ def test_reverse_patches_work():
         draft["c"] = 3
         del draft["b"]
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, reverse = produce(base, recipe)
 
     # Apply reverse patches to result should give us base
     reverted = apply(result, reverse)
@@ -121,6 +120,6 @@ def test_reading_nested_values():
         # Modify based on read value
         draft["user"]["name"] = name.upper()
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result["user"]["name"] == "ALICE"

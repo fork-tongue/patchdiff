@@ -1,6 +1,6 @@
 """Example demonstrating proxy-based patch generation using produce()."""
 
-from patchdiff import produce, apply
+from patchdiff import apply, produce
 
 # Example 1: Simple dict mutations
 print("Example 1: Dict mutations")

@@ -24,10 +24,12 @@ def _add_reader_methods(proxy_class, method_names):
 
     These methods don't modify the object and just pass through to _data.
     """
+
     def _make_reader(name):
         def reader(self, *args, **kwargs):
             method = getattr(self._data, name)
             return method(*args, **kwargs)
+
         reader.__name__ = name
         reader.__qualname__ = f"{proxy_class.__name__}.{name}"
         return reader
@@ -48,20 +50,14 @@ class PatchRecorder:
         self.patches.append({"op": "add", "path": path, "value": value})
         if reverse_value is not None:
             # For reverse, we either remove or replace
-            self.reverse_patches.insert(
-                0, {"op": "remove", "path": path}
-            )
+            self.reverse_patches.insert(0, {"op": "remove", "path": path})
         else:
-            self.reverse_patches.insert(
-                0, {"op": "remove", "path": path}
-            )
+            self.reverse_patches.insert(0, {"op": "remove", "path": path})
 
     def record_remove(self, path: Pointer, old_value: Any) -> None:
         """Record a remove operation."""
         self.patches.append({"op": "remove", "path": path})
-        self.reverse_patches.insert(
-            0, {"op": "add", "path": path, "value": old_value}
-        )
+        self.reverse_patches.insert(0, {"op": "add", "path": path, "value": old_value})
 
     def record_replace(self, path: Pointer, old_value: Any, new_value: Any) -> None:
         """Record a replace operation."""
@@ -85,15 +81,21 @@ class DictProxy:
         # Use duck typing to support observ reactive objects and other proxies
         if hasattr(value, "keys"):  # dict-like
             if key not in self._proxies:
-                self._proxies[key] = DictProxy(value, self._recorder, self._path.append(key))
+                self._proxies[key] = DictProxy(
+                    value, self._recorder, self._path.append(key)
+                )
             return self._proxies[key]
         elif hasattr(value, "append"):  # list-like
             if key not in self._proxies:
-                self._proxies[key] = ListProxy(value, self._recorder, self._path.append(key))
+                self._proxies[key] = ListProxy(
+                    value, self._recorder, self._path.append(key)
+                )
             return self._proxies[key]
         elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
             if key not in self._proxies:
-                self._proxies[key] = SetProxy(value, self._recorder, self._path.append(key))
+                self._proxies[key] = SetProxy(
+                    value, self._recorder, self._path.append(key)
+                )
             return self._proxies[key]
         return value
 
@@ -170,10 +172,20 @@ class DictProxy:
 
 
 # Add simple reader methods to DictProxy
-_add_reader_methods(DictProxy, [
-    '__len__', '__contains__', '__repr__', '__iter__', '__reversed__',
-    'keys', 'values', 'items', 'copy',
-])
+_add_reader_methods(
+    DictProxy,
+    [
+        "__len__",
+        "__contains__",
+        "__repr__",
+        "__iter__",
+        "__reversed__",
+        "keys",
+        "values",
+        "items",
+        "copy",
+    ],
+)
 
 
 class ListProxy:
@@ -190,15 +202,21 @@ class ListProxy:
         # Use duck typing to support observ reactive objects and other proxies
         if hasattr(value, "keys"):  # dict-like
             if index not in self._proxies:
-                self._proxies[index] = DictProxy(value, self._recorder, self._path.append(index))
+                self._proxies[index] = DictProxy(
+                    value, self._recorder, self._path.append(index)
+                )
             return self._proxies[index]
         elif hasattr(value, "append"):  # list-like
             if index not in self._proxies:
-                self._proxies[index] = ListProxy(value, self._recorder, self._path.append(index))
+                self._proxies[index] = ListProxy(
+                    value, self._recorder, self._path.append(index)
+                )
             return self._proxies[index]
         elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
             if index not in self._proxies:
-                self._proxies[index] = SetProxy(value, self._recorder, self._path.append(index))
+                self._proxies[index] = SetProxy(
+                    value, self._recorder, self._path.append(index)
+                )
             return self._proxies[index]
         return value
 
@@ -222,7 +240,9 @@ class ListProxy:
                         f"to extended slice of size {len(old_values)}"
                     )
                 # Replace each element in the stepped slice
-                for i, (idx, new_val) in enumerate(zip(range(start, stop, step), value)):
+                for i, (idx, new_val) in enumerate(
+                    zip(range(start, stop, step), value)
+                ):
                     path = self._path.append(idx)
                     old_val = self._data[idx]
                     self._recorder.record_replace(path, old_val, new_val)
@@ -243,7 +263,9 @@ class ListProxy:
                 for i in range(min(old_len, new_len)):
                     if old_values[i] != new_values[i]:
                         path = self._path.append(start + i)
-                        self._recorder.record_replace(path, old_values[i], new_values[i])
+                        self._recorder.record_replace(
+                            path, old_values[i], new_values[i]
+                        )
 
                 # Add new elements if new slice is longer
                 if new_len > old_len:
@@ -304,7 +326,6 @@ class ListProxy:
         self._proxies.clear()
 
     def append(self, value: Any) -> None:
-        index = len(self._data)
         path = self._path.append("-")
         self._recorder.record_add(path, value)
         self._data.append(value)
@@ -370,10 +391,19 @@ class ListProxy:
 
 
 # Add simple reader methods to ListProxy
-_add_reader_methods(ListProxy, [
-    '__len__', '__contains__', '__repr__', '__iter__', '__reversed__',
-    'index', 'count', 'copy',
-])
+_add_reader_methods(
+    ListProxy,
+    [
+        "__len__",
+        "__contains__",
+        "__repr__",
+        "__iter__",
+        "__reversed__",
+        "index",
+        "count",
+        "copy",
+    ],
+)
 
 
 class SetProxy:
@@ -451,11 +481,23 @@ class SetProxy:
 
 
 # Add simple reader methods to SetProxy
-_add_reader_methods(SetProxy, [
-    '__len__', '__contains__', '__repr__', '__iter__',
-    'union', 'intersection', 'difference', 'symmetric_difference',
-    'isdisjoint', 'issubset', 'issuperset', 'copy',
-])
+_add_reader_methods(
+    SetProxy,
+    [
+        "__len__",
+        "__contains__",
+        "__repr__",
+        "__iter__",
+        "union",
+        "intersection",
+        "difference",
+        "symmetric_difference",
+        "isdisjoint",
+        "issubset",
+        "issuperset",
+        "copy",
+    ],
+)
 
 
 def produce(

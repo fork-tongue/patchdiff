@@ -2,7 +2,7 @@
 
 import pytest
 
-from patchdiff import apply, produce
+from patchdiff import produce
 from patchdiff.pointer import Pointer
 
 
@@ -13,7 +13,7 @@ def test_set_add():
     def recipe(draft):
         draft.add(4)
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {1, 2, 3, 4}
     assert len(patches) == 1
@@ -43,7 +43,7 @@ def test_set_discard():
         draft.discard(2)
         draft.discard(10)  # Doesn't raise error
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {1, 3}
     assert len(patches) == 1  # Only removal of 2
@@ -56,7 +56,7 @@ def test_set_update():
     def recipe(draft):
         draft.update({3, 4})
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {1, 2, 3, 4}
     assert len(patches) == 2
@@ -69,7 +69,7 @@ def test_set_clear():
     def recipe(draft):
         draft.clear()
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == set()
     assert len(patches) == 3
@@ -84,7 +84,7 @@ def test_set_contains():
         assert 5 not in draft
         draft.add(5)
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert 5 in result
 
@@ -98,7 +98,7 @@ def test_set_len():
         draft.add(4)
         assert len(draft) == 4
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert len(result) == 4
 
@@ -111,7 +111,7 @@ def test_set_pop_non_empty():
         value = draft.pop()
         assert value in {1, 2, 3}
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert len(result) == 2
     assert len(patches) == 1
@@ -148,7 +148,7 @@ def test_set_union():
         result = draft.union({3, 4, 5})
         assert result == {1, 2, 3, 4, 5}
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == {1, 2, 3}  # Original unchanged by union
 
@@ -161,7 +161,7 @@ def test_set_intersection():
         result = draft.intersection({2, 3, 4})
         assert result == {2, 3}
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == {1, 2, 3}  # Original unchanged
 
@@ -174,7 +174,7 @@ def test_set_difference():
         result = draft.difference({2, 4})
         assert result == {1, 3}
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == {1, 2, 3}  # Original unchanged
 
@@ -187,7 +187,7 @@ def test_set_symmetric_difference():
         result = draft.symmetric_difference({2, 3, 4})
         assert result == {1, 4}
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == {1, 2, 3}  # Original unchanged
 
@@ -199,7 +199,7 @@ def test_set_update_inplace_operator():
     def recipe(draft):
         draft |= {3, 4, 5}
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {1, 2, 3, 4, 5}
     assert len(patches) == 2  # Added 4 and 5
@@ -212,7 +212,7 @@ def test_set_intersection_update():
     def recipe(draft):
         draft &= {2, 3, 4}
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {2, 3}
     assert len(patches) == 1  # Removed 1
@@ -225,7 +225,7 @@ def test_set_difference_update():
     def recipe(draft):
         draft -= {2, 4}
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {1, 3}
     assert len(patches) == 1  # Removed 2
@@ -238,7 +238,7 @@ def test_set_symmetric_difference_update():
     def recipe(draft):
         draft ^= {2, 3, 4}
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {1, 4}
     assert len(patches) == 3  # Removed 2, 3, added 4
@@ -254,7 +254,7 @@ def test_set_iter():
             values.append(value)
         assert set(values) == {1, 2, 3}
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == base
 
@@ -268,7 +268,7 @@ def test_set_isdisjoint():
         assert draft.isdisjoint({4, 5, 6}) is True
         assert draft.isdisjoint({2, 4}) is False
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     # No mutations, so no patches
     assert patches == []
@@ -284,7 +284,7 @@ def test_set_issubset():
         assert draft.issubset({1, 2, 3}) is True
         assert draft.issubset({1}) is False
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     # No mutations, so no patches
     assert patches == []
@@ -300,7 +300,7 @@ def test_set_issuperset():
         assert draft.issuperset({1, 2}) is True
         assert draft.issuperset({1, 2, 4}) is False
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     # No mutations, so no patches
     assert patches == []
@@ -320,7 +320,7 @@ def test_set_copy():
         copied.add(4)
         # This mutation is on the copy, not the draft
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     # No mutations to draft, so no patches
     assert patches == []

@@ -2,7 +2,7 @@
 
 import pytest
 
-from patchdiff import apply, produce
+from patchdiff import produce
 from patchdiff.pointer import Pointer
 
 
@@ -29,7 +29,7 @@ def test_list_insert():
     def recipe(draft):
         draft.insert(1, 10)
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [1, 10, 2, 3]
     assert len(patches) == 1
@@ -44,7 +44,7 @@ def test_list_pop():
         value = draft.pop()
         assert value == 3
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [1, 2]
     assert len(patches) == 1
@@ -58,7 +58,7 @@ def test_list_remove():
     def recipe(draft):
         draft.remove(2)  # Removes first occurrence
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [1, 3, 2]
     assert len(patches) == 1
@@ -86,7 +86,7 @@ def test_list_delitem():
     def recipe(draft):
         del draft[1]
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [1, 3]
     assert len(patches) == 1
@@ -100,7 +100,7 @@ def test_list_extend():
     def recipe(draft):
         draft.extend([3, 4])
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [1, 2, 3, 4]
     assert len(patches) == 2  # Two append operations
@@ -113,7 +113,7 @@ def test_list_clear():
     def recipe(draft):
         draft.clear()
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == []
     assert len(patches) == 3  # All elements removed
@@ -127,7 +127,7 @@ def test_list_nested():
         draft["items"].append(4)
         draft["items"][0] = 10
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {"items": [10, 2, 3, 4]}
     assert len(patches) == 2
@@ -142,7 +142,7 @@ def test_list_contains():
         assert 5 not in draft
         draft.append(5)
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert 5 in result
 
@@ -156,7 +156,7 @@ def test_list_len():
         draft.append(4)
         assert len(draft) == 4
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert len(result) == 4
 
@@ -169,7 +169,7 @@ def test_list_pop_with_index():
         value = draft.pop(1)
         assert value == 2
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [1, 3, 4]
     assert len(patches) == 1
@@ -184,7 +184,7 @@ def test_list_pop_negative_index():
         value = draft.pop(-2)
         assert value == 3
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == [1, 2, 4]
 
@@ -197,7 +197,7 @@ def test_list_getitem_slice():
         sliced = draft[1:3]
         assert sliced == [2, 3]
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == base
 
@@ -209,7 +209,7 @@ def test_list_setitem_slice():
     def recipe(draft):
         draft[1:3] = [20, 30]
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [1, 20, 30, 4, 5]
     # Should generate replace patches for indices 1 and 2
@@ -229,7 +229,7 @@ def test_list_setitem_slice_expand():
     def recipe(draft):
         draft[1:3] = [20, 30, 40]
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [1, 20, 30, 40, 4, 5]
     # Should replace 2 elements and add 1
@@ -246,7 +246,7 @@ def test_list_setitem_slice_shrink():
     def recipe(draft):
         draft[1:4] = [20]
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [1, 20, 5]
     # Should replace 1 element and remove 2
@@ -263,7 +263,7 @@ def test_list_setitem_slice_step():
     def recipe(draft):
         draft[::2] = [10, 30, 50]  # Replace indices 0, 2, 4
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [10, 2, 30, 4, 50]
     # Should generate replace patches for indices 0, 2, 4
@@ -278,7 +278,7 @@ def test_list_delitem_slice():
     def recipe(draft):
         del draft[1:3]
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [1, 4, 5]
     # Should generate remove patches (in reverse order to maintain indices)
@@ -296,7 +296,7 @@ def test_list_delitem_slice_step():
     def recipe(draft):
         del draft[::2]  # Delete indices 0, 2, 4
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == [2, 4]
     # Should generate remove patches for indices 0, 2, 4 (in reverse)
@@ -312,7 +312,7 @@ def test_list_index():
         idx = draft.index(2)
         assert idx == 1
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == base
 
@@ -337,7 +337,7 @@ def test_list_count():
         assert count == 3
         draft.append(2)
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result.count(2) == 4
 
@@ -349,7 +349,7 @@ def test_list_reverse():
     def recipe(draft):
         draft.reverse()
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == [4, 3, 2, 1]
 
@@ -361,7 +361,7 @@ def test_list_sort():
     def recipe(draft):
         draft.sort()
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == [1, 2, 3, 4]
 
@@ -373,7 +373,7 @@ def test_list_sort_reverse():
     def recipe(draft):
         draft.sort(reverse=True)
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == [4, 3, 2, 1]
 
@@ -385,7 +385,7 @@ def test_list_sort_with_key():
     def recipe(draft):
         draft.sort(key=len)
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == ["a", "pie", "apple", "cherry"]
 
@@ -399,7 +399,7 @@ def test_list_reversed():
         # Verify reversed returns elements in reverse order
         assert rev == [4, 3, 2, 1]
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     # No mutations, so no patches
     assert patches == []
@@ -419,7 +419,7 @@ def test_list_copy():
         copied.append(4)
         # This mutation is on the copy, not the draft
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     # No mutations to draft, so no patches
     assert patches == []

@@ -55,6 +55,7 @@ print(f"\nInitial state: {dict(state)}")
 
 all_patches = []
 
+
 # First mutation
 def increment(draft):
     draft["count"] += 1
@@ -64,6 +65,7 @@ def increment(draft):
 result, patches, reverse = produce(state, increment, in_place=True)
 all_patches.extend(patches)
 print(f"After mutation 1: {dict(state)}")
+
 
 # Second mutation
 def increment_again(draft):
@@ -85,10 +87,12 @@ print("Example 4: Complex state updates")
 print("=" * 60)
 
 # Complex nested state
-state = reactive({
-    "user": {"name": "Alice", "preferences": {"theme": "light"}},
-    "data": [1, 2, 3],
-})
+state = reactive(
+    {
+        "user": {"name": "Alice", "preferences": {"theme": "light"}},
+        "data": [1, 2, 3],
+    }
+)
 
 print(f"\nBefore: {dict(state)}")
 
@@ -105,7 +109,9 @@ result, patches, reverse = produce(state, complex_update, in_place=True)
 print(f"After:  {dict(state)}")
 print(f"\nGenerated {len(patches)} patches:")
 for i, patch in enumerate(patches, 1):
-    print(f"  {i}. op={patch['op']}, path={patch['path']}, value={patch.get('value', 'N/A')}")
+    print(
+        f"  {i}. op={patch['op']}, path={patch['path']}, value={patch.get('value', 'N/A')}"
+    )
 
 print("\n" + "=" * 60)
 print("Summary")

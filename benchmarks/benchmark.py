@@ -25,6 +25,7 @@ from patchdiff.pointer import Pointer
 # Optional observ integration for benchmarks
 try:
     from observ import reactive, to_raw
+
     OBSERV_AVAILABLE = True
 except ImportError:
     OBSERV_AVAILABLE = False
@@ -373,7 +374,10 @@ def test_produce_list_many_appends(benchmark):
 def test_diff_nested_structure(benchmark):
     """Benchmark: diff() on nested dict/list structure (baseline)."""
     base = {
-        "users": [{"name": f"User{i}", "age": 20 + i, "tags": set(range(i, i + 5))} for i in range(50)]
+        "users": [
+            {"name": f"User{i}", "age": 20 + i, "tags": set(range(i, i + 5))}
+            for i in range(50)
+        ]
     }
 
     def run():
@@ -391,7 +395,10 @@ def test_diff_nested_structure(benchmark):
 def test_produce_nested_structure(benchmark):
     """Benchmark: produce() on nested dict/list structure."""
     base = {
-        "users": [{"name": f"User{i}", "age": 20 + i, "tags": set(range(i, i + 5))} for i in range(50)]
+        "users": [
+            {"name": f"User{i}", "age": 20 + i, "tags": set(range(i, i + 5))}
+            for i in range(50)
+        ]
     }
 
     def recipe(draft):

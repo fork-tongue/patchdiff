@@ -7,7 +7,7 @@ except ImportError:
     print("Install it with: pip install observ")
     exit(1)
 
-from patchdiff import produce, apply
+from patchdiff import apply, produce
 
 print("=" * 60)
 print("Example 1: Using produce() with observ reactive objects")
@@ -26,6 +26,7 @@ def on_change(old, new):
 
 watcher = watch(lambda: state["count"], on_change)
 
+
 # Use produce to generate patches from mutations
 def increment_recipe(draft):
     draft["count"] += 1
@@ -36,7 +37,7 @@ result, patches, reverse = produce(state, increment_recipe)
 
 print(f"\nOriginal state: {state}")
 print(f"Result: {result}")
-print(f"\nPatches generated:")
+print("\nPatches generated:")
 for patch in patches:
     print(f"  {patch}")
 
@@ -89,11 +90,11 @@ def complex_recipe(draft):
 
 result, patches, reverse = produce(app_state, complex_recipe)
 
-print(f"\nOriginal app state:")
+print("\nOriginal app state:")
 print(f"  Users: {app_state['users']}")
 print(f"  Settings: {app_state['settings']}")
 
-print(f"\nResult after mutations:")
+print("\nResult after mutations:")
 print(f"  Users: {result['users']}")
 print(f"  Settings: {result['settings']}")
 

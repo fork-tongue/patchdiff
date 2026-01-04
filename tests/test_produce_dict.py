@@ -2,7 +2,7 @@
 
 import pytest
 
-from patchdiff import apply, produce
+from patchdiff import produce
 from patchdiff.pointer import Pointer
 
 
@@ -63,7 +63,7 @@ def test_dict_multiple_operations():
         draft["c"] = 3
         del draft["b"]
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {"a": 10, "c": 3}
     assert len(patches) == 3
@@ -77,7 +77,7 @@ def test_dict_nested():
         draft["user"]["age"] = 31
         draft["user"]["city"] = "NYC"
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {"user": {"name": "Alice", "age": 31, "city": "NYC"}}
     assert len(patches) == 2
@@ -95,7 +95,7 @@ def test_dict_pop():
         value = draft.pop("b")
         assert value == 2
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {"a": 1}
     assert len(patches) == 1
@@ -109,7 +109,7 @@ def test_dict_update():
     def recipe(draft):
         draft.update({"b": 2, "c": 3})
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {"a": 1, "b": 2, "c": 3}
     assert len(patches) == 2
@@ -123,7 +123,7 @@ def test_dict_setdefault():
         draft.setdefault("b", 2)
         draft.setdefault("a", 10)  # Should not change
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {"a": 1, "b": 2}
     assert len(patches) == 1  # Only "b" was added
@@ -136,7 +136,7 @@ def test_dict_clear():
     def recipe(draft):
         draft.clear()
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {}
     assert len(patches) == 3  # All keys removed
@@ -151,7 +151,7 @@ def test_dict_contains():
         assert "c" not in draft
         draft["c"] = 3
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == {"a": 1, "b": 2, "c": 3}
 
@@ -165,7 +165,7 @@ def test_dict_len():
         draft["c"] = 3
         assert len(draft) == 3
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert len(result) == 3
 
@@ -180,7 +180,7 @@ def test_dict_keys():
         assert "b" in keys
         draft["c"] = 3
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert "c" in result.keys()
 
@@ -194,7 +194,7 @@ def test_dict_items():
         assert ("a", 1) in items
         draft["c"] = 3
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert ("c", 3) in result.items()
 
@@ -208,7 +208,7 @@ def test_dict_get_existing_key():
         assert value == 1
         draft["b"] = value + 1
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result["b"] == 2
 
@@ -222,7 +222,7 @@ def test_dict_get_missing_key_default():
         assert value == 99
         draft["b"] = value
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result["b"] == 99
 
@@ -235,7 +235,7 @@ def test_dict_get_missing_key_no_default():
         value = draft.get("missing")
         assert value is None
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == {"a": 1}
 
@@ -248,7 +248,7 @@ def test_dict_pop_with_default():
         value = draft.pop("missing", 99)
         assert value == 99
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert result == {"a": 1}
     assert len(patches) == 0  # No mutations
@@ -274,7 +274,7 @@ def test_dict_popitem():
         assert key in ("a", "b")
         assert value in (1, 2)
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     assert len(result) == 1
     assert len(patches) == 1
@@ -302,7 +302,7 @@ def test_dict_iter():
             keys.append(key)
         assert set(keys) == {"a", "b", "c"}
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == base
 
@@ -315,7 +315,7 @@ def test_dict_values():
         total = sum(draft.values())
         draft["total"] = total
 
-    result, patches, reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result["total"] == 6
 
@@ -329,7 +329,7 @@ def test_dict_reversed():
         # Verify reversed returns keys in reverse insertion order
         assert keys == ["c", "b", "a"]
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     # No mutations, so no patches
     assert patches == []
@@ -349,7 +349,7 @@ def test_dict_copy():
         copied["new"] = 3
         # This mutation is on the copy, not the draft
 
-    result, patches, reverse = produce(base, recipe)
+    result, patches, _reverse = produce(base, recipe)
 
     # No mutations to draft, so no patches
     assert patches == []
