@@ -163,6 +163,14 @@ class DictProxy:
         for key in keys_to_remove:
             del self[key]
 
+    def popitem(self):
+        if not self._data:
+            raise KeyError("popitem(): dictionary is empty")
+        key, value = self._data.popitem()
+        path = self._path.append(key)
+        self._recorder.record_remove(path, value)
+        return key, value
+
     def __repr__(self):
         return f"DictProxy({self._data!r})"
 
