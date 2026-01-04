@@ -369,6 +369,54 @@ class SetProxy:
     def __iter__(self):
         return iter(self._data)
 
+    def union(self, *others) -> Set:
+        """Return union as a new set (does not mutate)."""
+        return self._data.union(*others)
+
+    def intersection(self, *others) -> Set:
+        """Return intersection as a new set (does not mutate)."""
+        return self._data.intersection(*others)
+
+    def difference(self, *others) -> Set:
+        """Return difference as a new set (does not mutate)."""
+        return self._data.difference(*others)
+
+    def symmetric_difference(self, other) -> Set:
+        """Return symmetric difference as a new set (does not mutate)."""
+        return self._data.symmetric_difference(other)
+
+    def __ior__(self, other):
+        """Implement |= operator (union update)."""
+        for value in other:
+            self.add(value)
+        return self
+
+    def __iand__(self, other):
+        """Implement &= operator (intersection update)."""
+        # Remove values not in other
+        values_to_remove = [v for v in self._data if v not in other]
+        for value in values_to_remove:
+            self.remove(value)
+        return self
+
+    def __isub__(self, other):
+        """Implement -= operator (difference update)."""
+        # Remove values that are in other
+        for value in other:
+            if value in self._data:
+                self.remove(value)
+        return self
+
+    def __ixor__(self, other):
+        """Implement ^= operator (symmetric difference update)."""
+        # Add values from other that aren't in self, remove values that are in both
+        for value in other:
+            if value in self._data:
+                self.remove(value)
+            else:
+                self.add(value)
+        return self
+
     def __repr__(self):
         return f"SetProxy({self._data!r})"
 
