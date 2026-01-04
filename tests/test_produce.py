@@ -484,3 +484,540 @@ def test_iterating_over_proxy():
     result, patches, reverse = produce(base, recipe)
 
     assert result["total"] == 6
+
+
+# Additional DictProxy tests
+
+
+def test_dict_contains():
+    """Test __contains__ (in operator) on dict proxy."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        assert "a" in draft
+        assert "c" not in draft
+        draft["c"] = 3
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": 2, "c": 3}
+
+
+def test_dict_len():
+    """Test __len__ on dict proxy."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        assert len(draft) == 2
+        draft["c"] = 3
+        assert len(draft) == 3
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert len(result) == 3
+
+
+def test_dict_keys():
+    """Test keys() method on dict proxy."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        keys = list(draft.keys())
+        assert "a" in keys
+        assert "b" in keys
+        draft["c"] = 3
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert "c" in result.keys()
+
+
+def test_dict_items():
+    """Test items() method on dict proxy."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        items = list(draft.items())
+        assert ("a", 1) in items
+        draft["c"] = 3
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert ("c", 3) in result.items()
+
+
+def test_dict_get_existing_key():
+    """Test get() with existing key."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        value = draft.get("a")
+        assert value == 1
+        draft["b"] = value + 1
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result["b"] == 2
+
+
+def test_dict_get_missing_key_default():
+    """Test get() with missing key and default."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        value = draft.get("missing", 99)
+        assert value == 99
+        draft["b"] = value
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result["b"] == 99
+
+
+def test_dict_get_missing_key_no_default():
+    """Test get() with missing key and no default."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        value = draft.get("missing")
+        assert value is None
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {"a": 1}
+
+
+def test_dict_pop_with_default():
+    """Test pop() with default value."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        value = draft.pop("missing", 99)
+        assert value == 99
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {"a": 1}
+    assert len(patches) == 0  # No mutations
+
+
+def test_dict_pop_missing_key_no_default():
+    """Test pop() with missing key and no default raises KeyError."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        draft.pop("missing")
+
+    with pytest.raises(KeyError):
+        produce(base, recipe)
+
+
+def test_dict_popitem():
+    """Test popitem() method on dict proxy."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        key, value = draft.popitem()
+        assert key in ("a", "b")
+        assert value in (1, 2)
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert len(result) == 1
+    assert len(patches) == 1
+    assert patches[0]["op"] == "remove"
+
+
+def test_dict_popitem_empty():
+    """Test popitem() on empty dict raises KeyError."""
+    base = {}
+
+    def recipe(draft):
+        draft.popitem()
+
+    with pytest.raises(KeyError):
+        produce(base, recipe)
+
+
+def test_dict_iter():
+    """Test iterating over dict keys."""
+    base = {"a": 1, "b": 2, "c": 3}
+
+    def recipe(draft):
+        keys = []
+        for key in draft:
+            keys.append(key)
+        assert set(keys) == {"a", "b", "c"}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+
+
+# Additional ListProxy tests
+
+
+def test_list_contains():
+    """Test __contains__ (in operator) on list proxy."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        assert 2 in draft
+        assert 5 not in draft
+        draft.append(5)
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert 5 in result
+
+
+def test_list_len():
+    """Test __len__ on list proxy."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        assert len(draft) == 3
+        draft.append(4)
+        assert len(draft) == 4
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert len(result) == 4
+
+
+def test_list_pop_with_index():
+    """Test pop() with specific index."""
+    base = [1, 2, 3, 4]
+
+    def recipe(draft):
+        value = draft.pop(1)
+        assert value == 2
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [1, 3, 4]
+    assert len(patches) == 1
+    assert patches[0]["op"] == "remove"
+
+
+def test_list_pop_negative_index():
+    """Test pop() with negative index."""
+    base = [1, 2, 3, 4]
+
+    def recipe(draft):
+        value = draft.pop(-2)
+        assert value == 3
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [1, 2, 4]
+
+
+def test_list_getitem_slice():
+    """Test __getitem__ with slice."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        sliced = draft[1:3]
+        assert sliced == [2, 3]
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_list_setitem_slice():
+    """Test __setitem__ with slice."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        draft[1:3] = [20, 30]
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [1, 20, 30, 4, 5]
+
+
+def test_list_delitem_slice():
+    """Test __delitem__ with slice."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        del draft[1:3]
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [1, 4, 5]
+
+
+def test_list_index():
+    """Test index() method on list proxy."""
+    base = [1, 2, 3, 2, 4]
+
+    def recipe(draft):
+        idx = draft.index(2)
+        assert idx == 1
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_list_index_not_found():
+    """Test index() with value not in list."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.index(5)
+
+    with pytest.raises(ValueError):
+        produce(base, recipe)
+
+
+def test_list_count():
+    """Test count() method on list proxy."""
+    base = [1, 2, 3, 2, 4, 2]
+
+    def recipe(draft):
+        count = draft.count(2)
+        assert count == 3
+        draft.append(2)
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result.count(2) == 4
+
+
+def test_list_reverse():
+    """Test reverse() method on list proxy."""
+    base = [1, 2, 3, 4]
+
+    def recipe(draft):
+        draft.reverse()
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [4, 3, 2, 1]
+
+
+def test_list_sort():
+    """Test sort() method on list proxy."""
+    base = [3, 1, 4, 2]
+
+    def recipe(draft):
+        draft.sort()
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [1, 2, 3, 4]
+
+
+def test_list_sort_reverse():
+    """Test sort() with reverse parameter."""
+    base = [3, 1, 4, 2]
+
+    def recipe(draft):
+        draft.sort(reverse=True)
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [4, 3, 2, 1]
+
+
+def test_list_sort_with_key():
+    """Test sort() with key function."""
+    base = ["apple", "pie", "a", "cherry"]
+
+    def recipe(draft):
+        draft.sort(key=len)
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == ["a", "pie", "apple", "cherry"]
+
+
+# Additional SetProxy tests
+
+
+def test_set_contains():
+    """Test __contains__ (in operator) on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        assert 2 in draft
+        assert 5 not in draft
+        draft.add(5)
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert 5 in result
+
+
+def test_set_len():
+    """Test __len__ on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        assert len(draft) == 3
+        draft.add(4)
+        assert len(draft) == 4
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert len(result) == 4
+
+
+def test_set_pop_non_empty():
+    """Test pop() on non-empty set."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        value = draft.pop()
+        assert value in {1, 2, 3}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert len(result) == 2
+    assert len(patches) == 1
+    assert patches[0]["op"] == "remove"
+
+
+def test_set_pop_empty():
+    """Test pop() on empty set raises KeyError."""
+    base = set()
+
+    def recipe(draft):
+        draft.pop()
+
+    with pytest.raises(KeyError):
+        produce(base, recipe)
+
+
+def test_set_remove_not_found():
+    """Test remove() with value not in set raises KeyError."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        draft.remove(5)
+
+    with pytest.raises(KeyError):
+        produce(base, recipe)
+
+
+def test_set_union():
+    """Test union() method on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        result = draft.union({3, 4, 5})
+        assert result == {1, 2, 3, 4, 5}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {1, 2, 3}  # Original unchanged by union
+
+
+def test_set_intersection():
+    """Test intersection() method on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        result = draft.intersection({2, 3, 4})
+        assert result == {2, 3}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {1, 2, 3}  # Original unchanged
+
+
+def test_set_difference():
+    """Test difference() method on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        result = draft.difference({2, 4})
+        assert result == {1, 3}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {1, 2, 3}  # Original unchanged
+
+
+def test_set_symmetric_difference():
+    """Test symmetric_difference() method on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        result = draft.symmetric_difference({2, 3, 4})
+        assert result == {1, 4}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {1, 2, 3}  # Original unchanged
+
+
+def test_set_update_inplace_operator():
+    """Test |= operator on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        draft |= {3, 4, 5}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {1, 2, 3, 4, 5}
+    assert len(patches) == 2  # Added 4 and 5
+
+
+def test_set_intersection_update():
+    """Test &= operator on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        draft &= {2, 3, 4}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {2, 3}
+    assert len(patches) == 1  # Removed 1
+
+
+def test_set_difference_update():
+    """Test -= operator on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        draft -= {2, 4}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {1, 3}
+    assert len(patches) == 1  # Removed 2
+
+
+def test_set_symmetric_difference_update():
+    """Test ^= operator on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        draft ^= {2, 3, 4}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {1, 4}
+    assert len(patches) == 3  # Removed 2, 3, added 4
+
+
+def test_set_iter():
+    """Test iterating over set."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        values = []
+        for value in draft:
+            values.append(value)
+        assert set(values) == {1, 2, 3}
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
