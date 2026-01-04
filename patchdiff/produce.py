@@ -8,7 +8,7 @@ This approach is inspired by Immer's proxy-based implementation.
 from __future__ import annotations
 
 import copy
-from typing import Any, Callable, Dict, List, Set, Tuple
+from typing import Any, Callable, Dict, List, Set, Tuple, Union
 
 from .pointer import Pointer
 
@@ -202,13 +202,13 @@ class ListProxy:
             return self._proxies[index]
         return value
 
-    def __getitem__(self, index: int) -> Any:
+    def __getitem__(self, index: Union[int, slice]) -> Any:
         value = self._data[index]
         if isinstance(index, slice):
             return value
         return self._wrap(index, value)
 
-    def __setitem__(self, index: int, value: Any) -> None:
+    def __setitem__(self, index: Union[int, slice], value: Any) -> None:
         if isinstance(index, slice):
             # Handle slice assignment with proper patch generation
             start, stop, step = index.indices(len(self._data))
@@ -270,7 +270,7 @@ class ListProxy:
         if index in self._proxies:
             del self._proxies[index]
 
-    def __delitem__(self, index: int) -> None:
+    def __delitem__(self, index: Union[int, slice]) -> None:
         if isinstance(index, slice):
             # Handle slice deletion with proper patch generation
             start, stop, step = index.indices(len(self._data))
