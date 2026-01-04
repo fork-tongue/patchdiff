@@ -210,13 +210,56 @@ class ListProxy:
 
     def __setitem__(self, index: int, value: Any) -> None:
         if isinstance(index, slice):
-            # Handle slice assignment - this is complex for patch generation
-            # For simplicity, we'll treat this as multiple operations
-            old_values = self._data[index]
-            self._data[index] = value
-            # For slices, we generate a replace for the entire list
-            # This is a simplification - a full implementation would generate
-            # individual patches for each changed element
+            # Handle slice assignment with proper patch generation
+            start, stop, step = index.indices(len(self._data))
+
+            if step != 1:
+                # Step slices must have same length
+                old_values = self._data[index]
+                if len(old_values) != len(value):
+                    raise ValueError(
+                        f"attempt to assign sequence of size {len(value)} "
+                        f"to extended slice of size {len(old_values)}"
+                    )
+                # Replace each element in the stepped slice
+                for i, (idx, new_val) in enumerate(zip(range(start, stop, step), value)):
+                    path = self._path.append(idx)
+                    old_val = self._data[idx]
+                    self._recorder.record_replace(path, old_val, new_val)
+                    self._data[idx] = new_val
+            else:
+                # Contiguous slice - can change length
+                old_values = list(self._data[start:stop])
+                new_values = list(value)
+
+                # Perform the slice assignment
+                self._data[start:stop] = new_values
+
+                # Generate patches for the changes
+                old_len = len(old_values)
+                new_len = len(new_values)
+
+                # Replace common elements
+                for i in range(min(old_len, new_len)):
+                    if old_values[i] != new_values[i]:
+                        path = self._path.append(start + i)
+                        self._recorder.record_replace(path, old_values[i], new_values[i])
+
+                # Add new elements if new slice is longer
+                if new_len > old_len:
+                    for i in range(old_len, new_len):
+                        path = self._path.append(start + i)
+                        self._recorder.record_add(path, new_values[i])
+
+                # Remove extra elements if new slice is shorter
+                elif new_len < old_len:
+                    # Remove from end to start to maintain correct indices
+                    for i in range(old_len - 1, new_len - 1, -1):
+                        path = self._path.append(start + i)
+                        self._recorder.record_remove(path, old_values[i])
+
+            # Invalidate all proxy caches as indices may have shifted
+            self._proxies.clear()
             return
 
         path = self._path.append(index)
@@ -228,6 +271,31 @@ class ListProxy:
             del self._proxies[index]
 
     def __delitem__(self, index: int) -> None:
+        if isinstance(index, slice):
+            # Handle slice deletion with proper patch generation
+            start, stop, step = index.indices(len(self._data))
+
+            if step != 1:
+                # For step slices, delete from end to start to maintain indices
+                indices = list(range(start, stop, step))
+                for idx in reversed(indices):
+                    old_value = self._data[idx]
+                    path = self._path.append(idx)
+                    self._recorder.record_remove(path, old_value)
+                    del self._data[idx]
+            else:
+                # Contiguous slice - delete from end to start
+                old_values = list(self._data[start:stop])
+                for i in range(len(old_values) - 1, -1, -1):
+                    old_value = old_values[i]
+                    path = self._path.append(start + i)
+                    self._recorder.record_remove(path, old_value)
+                del self._data[start:stop]
+
+            # Invalidate all proxy caches as indices shifted
+            self._proxies.clear()
+            return
+
         old_value = self._data[index]
         path = self._path.append(index)
         self._recorder.record_remove(path, old_value)

@@ -203,7 +203,7 @@ def test_list_getitem_slice():
 
 
 def test_list_setitem_slice():
-    """Test __setitem__ with slice."""
+    """Test __setitem__ with slice - same length replacement."""
     base = [1, 2, 3, 4, 5]
 
     def recipe(draft):
@@ -212,6 +212,63 @@ def test_list_setitem_slice():
     result, patches, reverse = produce(base, recipe)
 
     assert result == [1, 20, 30, 4, 5]
+    # Should generate replace patches for indices 1 and 2
+    assert len(patches) == 2
+    assert patches[0]["op"] == "replace"
+    assert patches[0]["path"].tokens == (1,)
+    assert patches[0]["value"] == 20
+    assert patches[1]["op"] == "replace"
+    assert patches[1]["path"].tokens == (2,)
+    assert patches[1]["value"] == 30
+
+
+def test_list_setitem_slice_expand():
+    """Test __setitem__ with slice - expanding (adding elements)."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        draft[1:3] = [20, 30, 40]
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [1, 20, 30, 40, 4, 5]
+    # Should replace 2 elements and add 1
+    assert len(patches) == 3
+    assert patches[0]["op"] == "replace"  # Replace index 1
+    assert patches[1]["op"] == "replace"  # Replace index 2
+    assert patches[2]["op"] == "add"  # Add at index 3
+
+
+def test_list_setitem_slice_shrink():
+    """Test __setitem__ with slice - shrinking (removing elements)."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        draft[1:4] = [20]
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [1, 20, 5]
+    # Should replace 1 element and remove 2
+    assert len(patches) == 3
+    assert patches[0]["op"] == "replace"  # Replace index 1
+    assert patches[1]["op"] == "remove"  # Remove index 3
+    assert patches[2]["op"] == "remove"  # Remove index 2
+
+
+def test_list_setitem_slice_step():
+    """Test __setitem__ with step slice."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        draft[::2] = [10, 30, 50]  # Replace indices 0, 2, 4
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [10, 2, 30, 4, 50]
+    # Should generate replace patches for indices 0, 2, 4
+    assert len(patches) == 3
+    assert all(p["op"] == "replace" for p in patches)
 
 
 def test_list_delitem_slice():
@@ -224,6 +281,27 @@ def test_list_delitem_slice():
     result, patches, reverse = produce(base, recipe)
 
     assert result == [1, 4, 5]
+    # Should generate remove patches (in reverse order to maintain indices)
+    assert len(patches) == 2
+    assert patches[0]["op"] == "remove"
+    assert patches[0]["path"].tokens == (2,)  # Remove 3 first
+    assert patches[1]["op"] == "remove"
+    assert patches[1]["path"].tokens == (1,)  # Then remove 2
+
+
+def test_list_delitem_slice_step():
+    """Test __delitem__ with step slice."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        del draft[::2]  # Delete indices 0, 2, 4
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [2, 4]
+    # Should generate remove patches for indices 0, 2, 4 (in reverse)
+    assert len(patches) == 3
+    assert all(p["op"] == "remove" for p in patches)
 
 
 def test_list_index():
