@@ -11,6 +11,17 @@ import copy
 from typing import Any, Callable, Dict, List, Set, Tuple
 
 from .pointer import Pointer
+from .traps import (
+    DICT_ITERATORS,
+    DICT_KEYREADERS,
+    DICT_READERS,
+    LIST_ITERATORS,
+    LIST_READERS,
+    SET_ITERATORS,
+    SET_READERS,
+    construct_reader_methods,
+    reader_trap,
+)
 
 # Optional observ integration
 try:
@@ -105,26 +116,6 @@ class DictProxy:
         if key in self._proxies:
             del self._proxies[key]
 
-    def __contains__(self, key: Any) -> bool:
-        return key in self._data
-
-    def __len__(self) -> int:
-        return len(self._data)
-
-    def __iter__(self):
-        return iter(self._data)
-
-    def keys(self):
-        return self._data.keys()
-
-    def values(self):
-        # Don't wrap values when iterating
-        return self._data.values()
-
-    def items(self):
-        # Don't wrap values when iterating
-        return self._data.items()
-
     def get(self, key: Any, default=None):
         if key in self._data:
             return self[key]
@@ -171,8 +162,9 @@ class DictProxy:
         self._recorder.record_remove(path, value)
         return key, value
 
-    def __repr__(self):
-        return f"DictProxy({self._data!r})"
+
+# Add simple reader methods to DictProxy using traps
+construct_reader_methods(DictProxy, DICT_READERS + DICT_ITERATORS + ['values', 'items'])
 
 
 class ListProxy:
@@ -234,13 +226,6 @@ class ListProxy:
         # Invalidate all proxy caches as indices shift
         self._proxies.clear()
 
-    def __len__(self) -> int:
-        return len(self._data)
-
-    def __iter__(self):
-        # Don't wrap when iterating
-        return iter(self._data)
-
     def append(self, value: Any) -> None:
         index = len(self._data)
         path = self._path.append("-")
@@ -278,15 +263,6 @@ class ListProxy:
         for value in values:
             self.append(value)
 
-    def __contains__(self, value: Any) -> bool:
-        return value in self._data
-
-    def index(self, value: Any, *args) -> int:
-        return self._data.index(value, *args)
-
-    def count(self, value: Any) -> int:
-        return self._data.count(value)
-
     def reverse(self) -> None:
         """Reverse the list in place and generate appropriate patches."""
         # Record the old state
@@ -315,8 +291,9 @@ class ListProxy:
         # Invalidate all proxy caches as positions changed
         self._proxies.clear()
 
-    def __repr__(self):
-        return f"ListProxy({self._data!r})"
+
+# Add simple reader methods to ListProxy using traps
+construct_reader_methods(ListProxy, LIST_READERS + LIST_ITERATORS)
 
 
 class SetProxy:
@@ -360,31 +337,6 @@ class SetProxy:
             for value in other:
                 self.add(value)
 
-    def __contains__(self, value: Any) -> bool:
-        return value in self._data
-
-    def __len__(self) -> int:
-        return len(self._data)
-
-    def __iter__(self):
-        return iter(self._data)
-
-    def union(self, *others) -> Set:
-        """Return union as a new set (does not mutate)."""
-        return self._data.union(*others)
-
-    def intersection(self, *others) -> Set:
-        """Return intersection as a new set (does not mutate)."""
-        return self._data.intersection(*others)
-
-    def difference(self, *others) -> Set:
-        """Return difference as a new set (does not mutate)."""
-        return self._data.difference(*others)
-
-    def symmetric_difference(self, other) -> Set:
-        """Return symmetric difference as a new set (does not mutate)."""
-        return self._data.symmetric_difference(other)
-
     def __ior__(self, other):
         """Implement |= operator (union update)."""
         for value in other:
@@ -417,8 +369,9 @@ class SetProxy:
                 self.add(value)
         return self
 
-    def __repr__(self):
-        return f"SetProxy({self._data!r})"
+
+# Add simple reader methods to SetProxy using traps
+construct_reader_methods(SetProxy, SET_READERS + SET_ITERATORS)
 
 
 def produce(
