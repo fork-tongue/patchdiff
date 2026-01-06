@@ -123,3 +123,92 @@ def test_reading_nested_values():
     result, _patches, _reverse = produce(base, recipe)
 
     assert result["user"]["name"] == "ALICE"
+
+
+def test_no_patch_for_same_value_dict():
+    """Test that setting a dict value to the same value produces no patch."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        draft["a"] = 1  # Same value
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": 2}
+    assert patches == [], f"Expected no patches, got {patches}"
+    assert reverse == []
+
+
+def test_no_patch_for_same_value_list():
+    """Test that setting a list item to the same value produces no patch."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft[1] = 2  # Same value
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == [1, 2, 3]
+    assert patches == [], f"Expected no patches, got {patches}"
+    assert reverse == []
+
+
+def test_no_patch_for_same_nested_value():
+    """Test that setting a nested value to the same value produces no patch."""
+    base = {"user": {"name": "Alice", "age": 30}}
+
+    def recipe(draft):
+        draft["user"]["name"] = "Alice"  # Same value
+        draft["user"]["age"] = 30  # Same value
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+    assert patches == [], f"Expected no patches, got {patches}"
+    assert reverse == []
+
+
+def test_no_patch_for_update_with_same_values():
+    """Test that dict.update() with same values produces no patches."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        draft.update({"a": 1, "b": 2})  # Same values
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+    assert patches == [], f"Expected no patches, got {patches}"
+    assert reverse == []
+
+
+def test_no_patch_for_list_slice_same_values():
+    """Test that slice assignment with same values produces no patches."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        draft[1:3] = [2, 3]  # Same values
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == base
+    assert patches == [], f"Expected no patches, got {patches}"
+    assert reverse == []
+
+
+def test_partial_patch_for_mixed_changes():
+    """Test that only actual changes produce patches."""
+    base = {"a": 1, "b": 2, "c": 3}
+
+    def recipe(draft):
+        draft["a"] = 1  # Same value - no patch
+        draft["b"] = 20  # Different value - should patch
+        draft["c"] = 3  # Same value - no patch
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": 20, "c": 3}
+    assert len(patches) == 1
+    assert patches[0]["op"] == "replace"
+    assert patches[0]["path"].tokens == ("b",)
+    assert patches[0]["value"] == 20

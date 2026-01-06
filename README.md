@@ -46,7 +46,7 @@ print(to_json(ops, indent=4))
 
 ## Proxy-based patch generation
 
-For better performance and a more intuitive API, you can use `produce()` which generates patches by tracking mutations on a proxy object (inspired by [Immer](https://immerjs.github.io/immer/)):
+For better performance, `produce()` can be used which generates patches by tracking mutations on a proxy object (inspired by [Immer](https://immerjs.github.io/immer/produce)):
 
 ```python
 from patchdiff import produce
@@ -76,7 +76,7 @@ print(patches)
 # ]
 ```
 
-For reactive state management (e.g., with [observ](https://github.com/fork-tongue/observ)), use `in_place=True` to mutate the original object:
+When used for reactive state management (e.g., with [observ](https://github.com/fork-tongue/observ)), use `in_place=True` to mutate the original object:
 
 ```python
 from observ import reactive
@@ -85,8 +85,14 @@ from patchdiff import produce
 state = reactive({"count": 0})
 
 # Mutate in place and get patches for undo/redo
-result, patches, reverse = produce(state, lambda draft: draft.update({"count": 5}), in_place=True)
+result, patches, reverse = produce(
+    state, 
+    lambda draft: draft.update({"count": 5}), 
+    in_place=True,
+)
 
 assert result is state  # Same object
 assert state["count"] == 5  # State was mutated, watchers triggered
 ```
+
+This prevents a `deepcopy` so can improve performance even further in cases where it is OK to diverge from Immers immutable state concepts.

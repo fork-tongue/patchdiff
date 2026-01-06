@@ -56,7 +56,9 @@ class PatchRecorder:
         self.reverse_patches.insert(0, {"op": "add", "path": path, "value": old_value})
 
     def record_replace(self, path: Pointer, old_value: Any, new_value: Any) -> None:
-        """Record a replace operation."""
+        """Record a replace operation, but only if the value actually changed."""
+        if old_value == new_value:
+            return  # Skip no-op replacements
         self.patches.append({"op": "replace", "path": path, "value": new_value})
         self.reverse_patches.insert(
             0, {"op": "replace", "path": path, "value": old_value}
