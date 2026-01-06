@@ -19,7 +19,8 @@ def test_list_append():
     assert len(patches) == 1
     assert patches[0] == {"op": "add", "path": Pointer(["-"]), "value": 4}
     assert len(reverse) == 1
-    assert reverse[0] == {"op": "remove", "path": Pointer(["-"])}
+    # Reverse patch uses actual index (3) instead of "-" for correct application
+    assert reverse[0] == {"op": "remove", "path": Pointer([3])}
 
 
 def test_list_insert():

@@ -362,8 +362,10 @@ class ListProxy:
         self._proxies.clear()
 
     def append(self, value: Any) -> None:
-        path = self._path.append("-")
-        self._recorder.record_add(path, value)
+        # Forward patch uses "-" (append to end), reverse patch uses actual index
+        forward_path = self._path.append("-")
+        reverse_path = self._path.append(len(self._data))
+        self._recorder.record_add(forward_path, value, reverse_path)
         self._data.append(value)
 
     def insert(self, index: int, value: Any) -> None:
@@ -400,9 +402,11 @@ class ListProxy:
     def extend(self, values):
         # Generate patches and extend data
         values_list = list(values)
-        for value in values_list:
-            path = self._path.append("-")
-            self._recorder.record_add(path, value)
+        start_index = len(self._data)
+        for i, value in enumerate(values_list):
+            forward_path = self._path.append("-")
+            reverse_path = self._path.append(start_index + i)
+            self._recorder.record_add(forward_path, value, reverse_path)
         self._data.extend(values_list)
 
     def reverse(self) -> None:
