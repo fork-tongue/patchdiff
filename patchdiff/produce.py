@@ -143,21 +143,36 @@ class DictProxy:
         return self[key]
 
     def update(self, *args, **kwargs):
+        # Collect all key-value pairs to update
+        items = []
         if args:
             other = args[0]
             if hasattr(other, "items"):
-                for key, value in other.items():
-                    self[key] = value
+                items.extend(other.items())
             else:
-                for key, value in other:
-                    self[key] = value
-        for key, value in kwargs.items():
-            self[key] = value
+                items.extend(other)
+        items.extend(kwargs.items())
+
+        # Generate patches and update data
+        for key, value in items:
+            path = self._path.append(key)
+            if key in self._data:
+                old_value = self._data[key]
+                self._recorder.record_replace(path, old_value, value)
+            else:
+                self._recorder.record_add(path, value)
+            self._data[key] = value
+            # Invalidate proxy cache for this key
+            if key in self._proxies:
+                del self._proxies[key]
 
     def clear(self):
-        keys_to_remove = list(self._data.keys())
-        for key in keys_to_remove:
-            del self[key]
+        # Generate patches for all keys and clear data
+        for key, value in list(self._data.items()):
+            path = self._path.append(key)
+            self._recorder.record_remove(path, value)
+        self._data.clear()
+        self._proxies.clear()
 
     def popitem(self):
         key, value = self._data.popitem()
@@ -361,12 +376,20 @@ class ListProxy:
         del self[index]
 
     def clear(self) -> None:
-        while self._data:
-            self.pop()
+        # Generate patches for all elements (from end to start for correct indices)
+        for i in range(len(self._data) - 1, -1, -1):
+            path = self._path.append(i)
+            self._recorder.record_remove(path, self._data[i])
+        self._data.clear()
+        self._proxies.clear()
 
     def extend(self, values):
-        for value in values:
-            self.append(value)
+        # Generate patches and extend data
+        values_list = list(values)
+        for value in values_list:
+            path = self._path.append("-")
+            self._recorder.record_add(path, value)
+        self._data.extend(values_list)
 
     def reverse(self) -> None:
         """Reverse the list in place and generate appropriate patches."""
@@ -445,14 +468,20 @@ class SetProxy:
         return value
 
     def clear(self) -> None:
-        values_to_remove = list(self._data)
-        for value in values_to_remove:
-            self.remove(value)
+        # Generate patches for all values and clear data
+        for value in list(self._data):
+            path = self._path.append(value)
+            self._recorder.record_remove(path, value)
+        self._data.clear()
 
     def update(self, *others):
+        # Generate patches and update data
         for other in others:
             for value in other:
-                self.add(value)
+                if value not in self._data:
+                    path = self._path.append("-")
+                    self._recorder.record_add(path, value)
+                    self._data.add(value)
 
     def __ior__(self, other):
         """Implement |= operator (union update)."""
