@@ -55,8 +55,8 @@ class Pointer:
                 for key in tokens:
                     parent = cursor
                     cursor = parent[key]
-            except (KeyError, TypeError):
-                # KeyError for dicts, TypeError for sets and lists
+            except (KeyError, TypeError, IndexError):
+                # KeyError for dicts, TypeError for sets, IndexError for lists
                 pass
         return parent, key, cursor
 

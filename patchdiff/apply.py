@@ -34,12 +34,18 @@ def iapply(obj: Diffable, patches: List[Dict]) -> Diffable:
                 else:
                     parent.insert(key, value)
             else:  # remove
-                del parent[key]
+                if key == "-":
+                    parent.pop()
+                else:
+                    del parent[key]
         else:  # set
             if op == "add":
-                parent.add(value)
+                if key == "-":
+                    parent.add(value)
+                else:
+                    parent.add(key)
             else:  # remove
-                parent.remove(key)
+                parent.discard(key)
     return obj
 
 

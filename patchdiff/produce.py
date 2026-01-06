@@ -45,10 +45,22 @@ class PatchRecorder:
         self.patches: List[Dict] = []
         self.reverse_patches: List[Dict] = []
 
-    def record_add(self, path: Pointer, value: Any) -> None:
-        """Record an add operation."""
+    def record_add(
+        self, path: Pointer, value: Any, reverse_path: Pointer = None
+    ) -> None:
+        """Record an add operation.
+
+        Args:
+            path: The path for the add operation
+            value: The value being added
+            reverse_path: Optional path for the reverse (remove) operation.
+                         If not provided, uses the same path. This is needed
+                         for sets where add uses "/-" but remove needs "/value".
+        """
         self.patches.append({"op": "add", "path": path, "value": value})
-        self.reverse_patches.insert(0, {"op": "remove", "path": path})
+        self.reverse_patches.insert(
+            0, {"op": "remove", "path": reverse_path if reverse_path else path}
+        )
 
     def record_remove(self, path: Pointer, old_value: Any) -> None:
         """Record a remove operation."""
@@ -449,7 +461,8 @@ class SetProxy:
     def add(self, value: Any) -> None:
         if value not in self._data:
             path = self._path.append("-")
-            self._recorder.record_add(path, value)
+            reverse_path = self._path.append(value)
+            self._recorder.record_add(path, value, reverse_path)
         self._data.add(value)
 
     def remove(self, value: Any) -> None:
@@ -482,7 +495,8 @@ class SetProxy:
             for value in other:
                 if value not in self._data:
                     path = self._path.append("-")
-                    self._recorder.record_add(path, value)
+                    reverse_path = self._path.append(value)
+                    self._recorder.record_add(path, value, reverse_path)
                     self._data.add(value)
 
     def __ior__(self, other):

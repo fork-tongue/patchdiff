@@ -5,6 +5,30 @@ import pytest
 from patchdiff import apply, produce
 
 
+def assert_patches_work(base, recipe):
+    """Helper to verify that patches and reverse patches work correctly.
+
+    This applies the recipe, then verifies:
+    1. Applying patches to base produces the result
+    2. Applying reverse patches to result produces the base
+    """
+    import copy
+
+    base_copy = copy.deepcopy(base)
+
+    result, patches, reverse = produce(base, recipe)
+
+    # Verify patches transform base to result
+    applied = apply(base_copy, patches)
+    assert applied == result, f"Patches failed: {patches}"
+
+    # Verify reverse patches transform result back to base
+    reverted = apply(result, reverse)
+    assert reverted == base_copy, f"Reverse patches failed: {reverse}"
+
+    return result, patches, reverse
+
+
 def test_deeply_nested_mutation():
     """Test mutations on deeply nested structures."""
     base = {"a": {"b": {"c": [1, 2, 3]}}}
@@ -212,3 +236,268 @@ def test_partial_patch_for_mixed_changes():
     assert patches[0]["op"] == "replace"
     assert patches[0]["path"].tokens == ("b",)
     assert patches[0]["value"] == 20
+
+
+# =============================================================================
+# Tests verifying patches and reverse patches actually work when applied
+# =============================================================================
+
+
+def test_dict_operations_patches_apply():
+    """Test that dict operation patches can be applied correctly."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        draft["a"] = 10  # replace
+        draft["c"] = 3  # add
+        del draft["b"]  # remove
+
+    assert_patches_work(base, recipe)
+
+
+def test_dict_update_patches_apply():
+    """Test that dict.update() patches can be applied correctly."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        draft.update({"b": 2, "c": 3})
+
+    assert_patches_work(base, recipe)
+
+
+def test_dict_pop_patches_apply():
+    """Test that dict.pop() patches can be applied correctly."""
+    base = {"a": 1, "b": 2, "c": 3}
+
+    def recipe(draft):
+        draft.pop("b")
+
+    assert_patches_work(base, recipe)
+
+
+def test_dict_clear_patches_apply():
+    """Test that dict.clear() patches can be applied correctly."""
+    base = {"a": 1, "b": 2, "c": 3}
+
+    def recipe(draft):
+        draft.clear()
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_append_patches_apply():
+    """Test that list.append() patches can be applied correctly."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.append(4)
+        draft.append(5)
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_insert_patches_apply():
+    """Test that list.insert() patches can be applied correctly."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.insert(1, 10)
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_pop_patches_apply():
+    """Test that list.pop() patches can be applied correctly."""
+    base = [1, 2, 3, 4]
+
+    def recipe(draft):
+        draft.pop()
+        draft.pop(0)
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_remove_patches_apply():
+    """Test that list.remove() patches can be applied correctly."""
+    base = [1, 2, 3, 2, 4]
+
+    def recipe(draft):
+        draft.remove(2)
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_setitem_patches_apply():
+    """Test that list setitem patches can be applied correctly."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft[0] = 10
+        draft[-1] = 30
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_delitem_patches_apply():
+    """Test that list delitem patches can be applied correctly."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        del draft[2]
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_extend_patches_apply():
+    """Test that list.extend() patches can be applied correctly."""
+    base = [1, 2]
+
+    def recipe(draft):
+        draft.extend([3, 4, 5])
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_clear_patches_apply():
+    """Test that list.clear() patches can be applied correctly."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.clear()
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_slice_setitem_patches_apply():
+    """Test that list slice assignment patches can be applied correctly."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        draft[1:3] = [20, 30, 40]
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_slice_delitem_patches_apply():
+    """Test that list slice deletion patches can be applied correctly."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        del draft[1:4]
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_reverse_patches_apply():
+    """Test that list.reverse() patches can be applied correctly."""
+    base = [1, 2, 3, 4]
+
+    def recipe(draft):
+        draft.reverse()
+
+    assert_patches_work(base, recipe)
+
+
+def test_list_sort_patches_apply():
+    """Test that list.sort() patches can be applied correctly."""
+    base = [3, 1, 4, 1, 5, 9, 2, 6]
+
+    def recipe(draft):
+        draft.sort()
+
+    assert_patches_work(base, recipe)
+
+
+def test_set_add_patches_apply():
+    """Test that set.add() patches can be applied correctly."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        draft.add(4)
+        draft.add(5)
+
+    assert_patches_work(base, recipe)
+
+
+def test_set_remove_patches_apply():
+    """Test that set.remove() patches can be applied correctly."""
+    base = {1, 2, 3, 4}
+
+    def recipe(draft):
+        draft.remove(2)
+
+    assert_patches_work(base, recipe)
+
+
+def test_set_discard_patches_apply():
+    """Test that set.discard() patches can be applied correctly."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        draft.discard(2)
+        draft.discard(10)  # Not present, should be no-op
+
+    assert_patches_work(base, recipe)
+
+
+def test_set_clear_patches_apply():
+    """Test that set.clear() patches can be applied correctly."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        draft.clear()
+
+    assert_patches_work(base, recipe)
+
+
+def test_set_update_patches_apply():
+    """Test that set.update() patches can be applied correctly."""
+    base = {1, 2}
+
+    def recipe(draft):
+        draft.update({3, 4, 5})
+
+    assert_patches_work(base, recipe)
+
+
+def test_set_operators_patches_apply():
+    """Test that set operator patches can be applied correctly."""
+    base = {1, 2, 3, 4}
+
+    def recipe(draft):
+        draft |= {5, 6}  # union
+        draft -= {1}  # difference
+        draft &= {2, 3, 5, 6}  # intersection
+
+    assert_patches_work(base, recipe)
+
+
+def test_nested_operations_patches_apply():
+    """Test that nested structure patches can be applied correctly."""
+    base = {
+        "users": [
+            {"name": "Alice", "tags": {1, 2}},
+            {"name": "Bob", "tags": {3, 4}},
+        ],
+        "count": 2,
+    }
+
+    def recipe(draft):
+        draft["users"][0]["name"] = "Alicia"
+        draft["users"][0]["tags"].add(5)
+        draft["users"].append({"name": "Charlie", "tags": set()})
+        draft["count"] = 3
+
+    assert_patches_work(base, recipe)
+
+
+def test_complex_list_operations_patches_apply():
+    """Test complex list operations produce correct patches."""
+    base = [{"id": 1}, {"id": 2}, {"id": 3}]
+
+    def recipe(draft):
+        draft[0]["id"] = 10
+        draft.pop(1)
+        draft.append({"id": 4})
+
+    assert_patches_work(base, recipe)
