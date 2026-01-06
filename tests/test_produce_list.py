@@ -424,3 +424,219 @@ def test_list_copy():
     # No mutations to draft, so no patches
     assert patches == []
     assert result == base
+
+
+def test_list_negative_index_nested_mutation():
+    """Test that negative indices generate correct paths for nested mutations.
+
+    This tests a bug where accessing nested structures via negative indices
+    would cache the proxy with the negative index and generate incorrect paths.
+    For example, draft[-1]["name"] = "new" on a 3-element list should generate
+    a path of [2, "name"], not [-1, "name"].
+    """
+    base = [{"name": "first"}, {"name": "second"}, {"name": "third"}]
+
+    def recipe(draft):
+        # Access via negative index and mutate nested structure
+        draft[-1]["name"] = "THIRD"
+        draft[-2]["name"] = "SECOND"
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [{"name": "first"}, {"name": "SECOND"}, {"name": "THIRD"}]
+    assert len(patches) == 2
+
+    # Verify paths use positive indices, not negative
+    # draft[-1] on a 3-element list should resolve to index 2
+    # draft[-2] on a 3-element list should resolve to index 1
+    patch_paths = [tuple(p["path"].tokens) for p in patches]
+    assert (2, "name") in patch_paths, f"Expected (2, 'name') in {patch_paths}"
+    assert (1, "name") in patch_paths, f"Expected (1, 'name') in {patch_paths}"
+
+    # Verify no negative indices in paths
+    for patch in patches:
+        for token in patch["path"].tokens:
+            if isinstance(token, int):
+                assert token >= 0, (
+                    f"Found negative index {token} in path {patch['path']}"
+                )
+
+
+def test_list_negative_index_cache_consistency():
+    """Test that accessing same element via positive and negative index returns same proxy.
+
+    If we access draft[2] and draft[-1] on a 3-element list, both should
+    refer to the same underlying element and mutations should be consistent.
+    """
+    base = [{"a": 1}, {"b": 2}, {"c": 3}]
+
+    def recipe(draft):
+        # Access via negative index first
+        draft[-1]["c"] = 30
+        # Access via positive index - should see the mutation
+        assert draft[2]["c"] == 30
+        # Mutate via positive index
+        draft[2]["d"] = 4
+        # Verify via negative index
+        assert draft[-1]["d"] == 4
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result[2] == {"c": 30, "d": 4}
+    # All paths should use positive indices
+    for patch in patches:
+        for token in patch["path"].tokens:
+            if isinstance(token, int):
+                assert token >= 0, (
+                    f"Found negative index {token} in path {patch['path']}"
+                )
+
+
+def test_list_slice_returns_wrapped_nested_structures():
+    """Test that slicing a list returns wrapped proxies for nested structures.
+
+    When accessing a slice of a list containing nested dicts/lists/sets,
+    mutations to those nested structures should be tracked and generate patches.
+    """
+    base = [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}]
+
+    def recipe(draft):
+        # Get a slice of the list
+        sliced = draft[1:3]
+        # sliced should be [{"b": 2}, {"c": 3}]
+        # Mutate a nested structure obtained from the slice
+        sliced[0]["b"] = 20
+        sliced[1]["c"] = 30
+
+    result, patches, _reverse = produce(base, recipe)
+
+    # Verify the mutations took effect
+    assert result == [{"a": 1}, {"b": 20}, {"c": 30}, {"d": 4}]
+
+    # Verify patches were generated for the nested mutations
+    assert len(patches) == 2
+    patch_paths = [tuple(p["path"].tokens) for p in patches]
+    assert (1, "b") in patch_paths, f"Expected (1, 'b') in {patch_paths}"
+    assert (2, "c") in patch_paths, f"Expected (2, 'c') in {patch_paths}"
+
+
+def test_list_slice_nested_list_mutation():
+    """Test that slicing works with nested lists."""
+    base = [[1, 2], [3, 4], [5, 6]]
+
+    def recipe(draft):
+        sliced = draft[0:2]
+        sliced[0].append(99)
+        sliced[1][0] = 30
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [[1, 2, 99], [30, 4], [5, 6]]
+    assert len(patches) == 2
+
+
+def test_list_slice_with_step_nested_mutation():
+    """Test that slicing with step returns wrapped nested structures."""
+    base = [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}, {"e": 5}]
+
+    def recipe(draft):
+        # Get every other element: indices 0, 2, 4
+        sliced = draft[::2]
+        sliced[0]["a"] = 10  # Mutate index 0
+        sliced[2]["e"] = 50  # Mutate index 4
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [{"a": 10}, {"b": 2}, {"c": 3}, {"d": 4}, {"e": 50}]
+    assert len(patches) == 2
+    patch_paths = [tuple(p["path"].tokens) for p in patches]
+    assert (0, "a") in patch_paths
+    assert (4, "e") in patch_paths
+
+
+def test_list_setitem_negative_index():
+    """Test that __setitem__ with negative index generates correct path.
+
+    Setting draft[-1] = value on a 3-element list should generate a patch
+    with path [2], not [-1].
+    """
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft[-1] = 30
+        draft[-2] = 20
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1, 20, 30]
+    assert len(patches) == 2
+
+    # Verify paths use positive indices
+    patch_paths = [tuple(p["path"].tokens) for p in patches]
+    assert (2,) in patch_paths, f"Expected (2,) in {patch_paths}"
+    assert (1,) in patch_paths, f"Expected (1,) in {patch_paths}"
+
+    # Verify no negative indices in paths
+    for patch in patches:
+        for token in patch["path"].tokens:
+            if isinstance(token, int):
+                assert token >= 0, (
+                    f"Found negative index {token} in path {patch['path']}"
+                )
+
+
+def test_list_delitem_negative_index():
+    """Test that __delitem__ with negative index generates correct path.
+
+    Deleting draft[-1] on a 3-element list should generate a patch
+    with path [2], not [-1].
+    """
+    base = [1, 2, 3, 4]
+
+    def recipe(draft):
+        del draft[-1]  # Delete 4, which is at index 3
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1, 2, 3]
+    assert len(patches) == 1
+    assert patches[0]["op"] == "remove"
+
+    # Verify path uses positive index (3, not -1)
+    assert patches[0]["path"].tokens == (3,), (
+        f"Expected (3,), got {patches[0]['path'].tokens}"
+    )
+
+
+def test_list_delitem_negative_index_multiple():
+    """Test multiple deletions with negative indices."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        del draft[-1]  # Delete 5 at index 4
+        del draft[-2]  # Delete 3 at index 2 (list is now [1,2,3,4])
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1, 2, 4]
+    assert len(patches) == 2
+
+    # First deletion should be at index 4
+    assert patches[0]["path"].tokens == (4,)
+    # Second deletion should be at index 2 (after first deletion, list is [1,2,3,4])
+    assert patches[1]["path"].tokens == (2,)
+
+
+def test_list_setitem_negative_index_nested():
+    """Test that __setitem__ with negative index works for nested structure replacement."""
+    base = [{"a": 1}, {"b": 2}, {"c": 3}]
+
+    def recipe(draft):
+        draft[-1] = {"c": 30}
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [{"a": 1}, {"b": 2}, {"c": 30}]
+    assert len(patches) == 1
+    assert patches[0]["path"].tokens == (2,)
+    assert patches[0]["op"] == "replace"

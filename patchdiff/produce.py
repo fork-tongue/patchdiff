@@ -45,14 +45,10 @@ class PatchRecorder:
         self.patches: List[Dict] = []
         self.reverse_patches: List[Dict] = []
 
-    def record_add(self, path: Pointer, value: Any, reverse_value: Any = None) -> None:
+    def record_add(self, path: Pointer, value: Any) -> None:
         """Record an add operation."""
         self.patches.append({"op": "add", "path": path, "value": value})
-        if reverse_value is not None:
-            # For reverse, we either remove or replace
-            self.reverse_patches.insert(0, {"op": "remove", "path": path})
-        else:
-            self.reverse_patches.insert(0, {"op": "remove", "path": path})
+        self.reverse_patches.insert(0, {"op": "remove", "path": path})
 
     def record_remove(self, path: Pointer, old_value: Any) -> None:
         """Record a remove operation."""
@@ -71,10 +67,10 @@ class DictProxy:
     """Proxy for dict objects that tracks mutations and generates patches."""
 
     def __init__(self, data: Dict, recorder: PatchRecorder, path: Pointer):
-        object.__setattr__(self, "_data", data)
-        object.__setattr__(self, "_recorder", recorder)
-        object.__setattr__(self, "_path", path)
-        object.__setattr__(self, "_proxies", {})
+        self._data = data
+        self._recorder = recorder
+        self._path = path
+        self._proxies = {}
 
     def _wrap(self, key: Any, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
@@ -143,6 +139,7 @@ class DictProxy:
     def setdefault(self, key: Any, default=None):
         if key not in self._data:
             self[key] = default
+            return default
         return self[key]
 
     def update(self, *args, **kwargs):
@@ -163,8 +160,6 @@ class DictProxy:
             del self[key]
 
     def popitem(self):
-        if not self._data:
-            raise KeyError("popitem(): dictionary is empty")
         key, value = self._data.popitem()
         path = self._path.append(key)
         self._recorder.record_remove(path, value)
@@ -192,10 +187,10 @@ class ListProxy:
     """Proxy for list objects that tracks mutations and generates patches."""
 
     def __init__(self, data: List, recorder: PatchRecorder, path: Pointer):
-        object.__setattr__(self, "_data", data)
-        object.__setattr__(self, "_recorder", recorder)
-        object.__setattr__(self, "_path", path)
-        object.__setattr__(self, "_proxies", {})
+        self._data = data
+        self._recorder = recorder
+        self._path = path
+        self._proxies = {}
 
     def _wrap(self, index: int, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
@@ -223,7 +218,13 @@ class ListProxy:
     def __getitem__(self, index: Union[int, slice]) -> Any:
         value = self._data[index]
         if isinstance(index, slice):
-            return value
+            # Wrap each element in the slice so nested mutations are tracked
+            start, stop, step = index.indices(len(self._data))
+            indices = range(start, stop, step)
+            return [self._wrap(i, self._data[i]) for i in indices]
+        # Resolve negative indices to positive for consistent caching and paths
+        if index < 0:
+            index = len(self._data) + index
         return self._wrap(index, value)
 
     def __setitem__(self, index: Union[int, slice], value: Any) -> None:
@@ -284,6 +285,9 @@ class ListProxy:
             self._proxies.clear()
             return
 
+        # Resolve negative indices to positive for correct paths
+        if index < 0:
+            index = len(self._data) + index
         path = self._path.append(index)
         old_value = self._data[index]
         self._recorder.record_replace(path, old_value, value)
@@ -318,6 +322,9 @@ class ListProxy:
             self._proxies.clear()
             return
 
+        # Resolve negative indices to positive for correct paths
+        if index < 0:
+            index = len(self._data) + index
         old_value = self._data[index]
         path = self._path.append(index)
         self._recorder.record_remove(path, old_value)
@@ -339,8 +346,8 @@ class ListProxy:
         self._proxies.clear()
 
     def pop(self, index: int = -1) -> Any:
-        if index == -1:
-            index = len(self._data) - 1
+        if index < 0:
+            index = len(self._data) + index
         old_value = self._data[index]
         path = self._path.append(index)
         self._recorder.record_remove(path, old_value)
@@ -353,7 +360,7 @@ class ListProxy:
         index = self._data.index(value)
         del self[index]
 
-    def clear(self):
+    def clear(self) -> None:
         while self._data:
             self.pop()
 
@@ -410,9 +417,9 @@ class SetProxy:
     """Proxy for set objects that tracks mutations and generates patches."""
 
     def __init__(self, data: Set, recorder: PatchRecorder, path: Pointer):
-        object.__setattr__(self, "_data", data)
-        object.__setattr__(self, "_recorder", recorder)
-        object.__setattr__(self, "_path", path)
+        self._data = data
+        self._recorder = recorder
+        self._path = path
 
     def add(self, value: Any) -> None:
         if value not in self._data:
