@@ -15,7 +15,7 @@ from .pointer import Pointer
 # Optional observ integration
 try:
     from observ import to_raw as observ_to_raw
-except ImportError:
+except ImportError:  # pragma: no cover
     observ_to_raw = None
 
 
