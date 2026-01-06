@@ -640,3 +640,64 @@ def test_list_setitem_negative_index_nested():
     assert len(patches) == 1
     assert patches[0]["path"].tokens == (2,)
     assert patches[0]["op"] == "replace"
+
+
+def test_list_directly_containing_sets():
+    """Test that sets directly inside lists are properly wrapped and tracked."""
+    base = [{1, 2, 3}, {4, 5, 6}]
+
+    def recipe(draft):
+        # Access the sets directly in the list and mutate them
+        draft[0].add(10)
+        draft[1].remove(5)
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result[0] == {1, 2, 3, 10}
+    assert result[1] == {4, 6}
+    assert len(patches) == 2
+
+
+def test_list_containing_set_nested_mutation():
+    """Test that sets nested inside lists are properly wrapped and tracked."""
+    base = [{"tags": {1, 2, 3}}, {"tags": {4, 5}}]
+
+    def recipe(draft):
+        # Access the set inside the list and mutate it
+        draft[0]["tags"].add(10)
+        draft[1]["tags"].remove(4)
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result[0]["tags"] == {1, 2, 3, 10}
+    assert result[1]["tags"] == {4, 5} - {4}
+    assert len(patches) == 2
+
+
+def test_list_setitem_invalidates_proxy_cache():
+    """Test that __setitem__ invalidates the proxy cache for nested structures."""
+    base = [{"a": 1}, {"b": 2}]
+
+    def recipe(draft):
+        # Access nested to create a proxy cache entry
+        _ = draft[0]["a"]
+        # Replace the nested structure entirely
+        draft[0] = {"c": 3}
+        # Access again - should get new structure, not cached proxy
+        assert dict(draft[0]) == {"c": 3}
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [{"c": 3}, {"b": 2}]
+
+
+def test_list_setitem_slice_step_length_mismatch():
+    """Test that step slice assignment raises ValueError on length mismatch."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        # Try to assign 2 values to 3 positions (indices 0, 2, 4)
+        draft[::2] = [10, 20]  # This should fail
+
+    with pytest.raises(ValueError, match="attempt to assign sequence of size 2"):
+        produce(base, recipe)

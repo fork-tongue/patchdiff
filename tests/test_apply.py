@@ -1,6 +1,13 @@
 from patchdiff import apply, diff
 
 
+def test_apply_empty_patches():
+    """Test that applying empty patches returns the original object."""
+    obj = {"a": 1, "b": [1, 2, 3]}
+    result = apply(obj, [])
+    assert result == obj
+
+
 def test_apply():
     a = {
         "a": [5, 7, 9, {"a", "b", "c"}],

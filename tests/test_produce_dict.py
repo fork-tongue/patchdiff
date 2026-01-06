@@ -354,3 +354,76 @@ def test_dict_copy():
     # No mutations to draft, so no patches
     assert patches == []
     assert result == base
+
+
+def test_dict_setitem_invalidates_proxy_cache():
+    """Test that __setitem__ invalidates the proxy cache for nested structures.
+
+    When a nested structure is accessed and then replaced, the old proxy
+    should be invalidated so subsequent access returns a new proxy.
+    """
+    base = {"nested": {"a": 1}}
+
+    def recipe(draft):
+        # Access nested to create a proxy cache entry
+        _ = draft["nested"]["a"]
+        # Replace the nested structure entirely
+        draft["nested"] = {"b": 2}
+        # Access again - should get new structure, not cached proxy
+        assert dict(draft["nested"]) == {"b": 2}
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"nested": {"b": 2}}
+
+
+def test_dict_delitem_invalidates_proxy_cache():
+    """Test that __delitem__ invalidates the proxy cache."""
+    base = {"nested": {"a": 1}, "other": 2}
+
+    def recipe(draft):
+        # Access nested to create a proxy cache entry
+        _ = draft["nested"]["a"]
+        # Delete the nested key
+        del draft["nested"]
+        # Verify it's gone
+        assert "nested" not in draft
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"other": 2}
+
+
+def test_dict_update_replaces_existing_keys():
+    """Test that update() correctly replaces existing keys and invalidates cache."""
+    base = {"a": {"x": 1}, "b": 2}
+
+    def recipe(draft):
+        # Access nested to create proxy cache
+        _ = draft["a"]["x"]
+        # Update with new values for existing keys
+        draft.update({"a": {"y": 2}, "b": 3, "c": 4})
+        # Verify the updates
+        assert dict(draft["a"]) == {"y": 2}
+        assert draft["b"] == 3
+        assert draft["c"] == 4
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": {"y": 2}, "b": 3, "c": 4}
+    # Should have: replace a, replace b, add c
+    assert len(patches) == 3
+
+
+def test_dict_update_with_iterable_of_pairs():
+    """Test that update() works with an iterable of key-value pairs."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        # Update with a list of tuples instead of a dict
+        draft.update([("b", 2), ("c", 3)])
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": 2, "c": 3}
+    assert len(patches) == 2
