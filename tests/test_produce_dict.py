@@ -372,7 +372,7 @@ def test_dict_setitem_invalidates_proxy_cache():
         # Access again - should get new structure, not cached proxy
         assert dict(draft["nested"]) == {"b": 2}
 
-    result, patches, _reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == {"nested": {"b": 2}}
 
@@ -389,7 +389,7 @@ def test_dict_delitem_invalidates_proxy_cache():
         # Verify it's gone
         assert "nested" not in draft
 
-    result, patches, _reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == {"other": 2}
 

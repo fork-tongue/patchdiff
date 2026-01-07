@@ -162,13 +162,13 @@ def test_watcher_triggered_on_in_place_dict_mutation():
         changes.append(("count", new_val, old_val))
 
     # Create a synchronous watcher on the count field
-    watcher = watch(lambda: state["count"], callback, sync=True)
+    _watcher = watch(lambda: state["count"], callback, sync=True)
 
     def recipe(draft):
         draft["count"] = 5
         draft["name"] = "Bob"
 
-    result, patches, _reverse = produce(state, recipe, in_place=True)
+    _result, _patches, _reverse = produce(state, recipe, in_place=True)
 
     # Watcher should have been triggered
     assert len(changes) == 1
@@ -188,13 +188,13 @@ def test_watcher_triggered_on_in_place_list_mutation():
         changes.append(("first", new_val, old_val))
 
     # Create a synchronous watcher on the first element
-    watcher = watch(lambda: state[0], callback, sync=True)
+    _watcher = watch(lambda: state[0], callback, sync=True)
 
     def recipe(draft):
         draft[0] = 10
         draft.append(4)
 
-    result, patches, _reverse = produce(state, recipe, in_place=True)
+    _result, _patches, _reverse = produce(state, recipe, in_place=True)
 
     # Watcher should have been triggered
     assert len(changes) == 1
@@ -213,12 +213,12 @@ def test_watcher_triggered_on_nested_mutation():
         changes.append(("age", new_val, old_val))
 
     # Create a synchronous watcher on nested field
-    watcher = watch(lambda: state["user"]["age"], callback, sync=True)
+    _watcher = watch(lambda: state["user"]["age"], callback, sync=True)
 
     def recipe(draft):
         draft["user"]["age"] = 31
 
-    result, patches, _reverse = produce(state, recipe, in_place=True)
+    _result, _patches, _reverse = produce(state, recipe, in_place=True)
 
     # Watcher should have been triggered
     assert len(changes) == 1
@@ -237,13 +237,13 @@ def test_watcher_not_triggered_without_in_place():
         changes.append(("count", new_val, old_val))
 
     # Create a synchronous watcher
-    watcher = watch(lambda: state["count"], callback, sync=True)
+    _watcher = watch(lambda: state["count"], callback, sync=True)
 
     def recipe(draft):
         draft["count"] = 5
 
     # Without in_place=True, the original state should not be mutated
-    result, patches, _reverse = produce(state, recipe)
+    result, _patches, _reverse = produce(state, recipe)
 
     # Watcher should NOT have been triggered (original not mutated)
     assert len(changes) == 0
@@ -267,14 +267,14 @@ def test_multiple_watchers_triggered():
         changes_b.append((new_val, old_val))
 
     # Create synchronous watchers on both fields
-    watcher_a = watch(lambda: state["a"], callback_a, sync=True)
-    watcher_b = watch(lambda: state["b"], callback_b, sync=True)
+    _watcher_a = watch(lambda: state["a"], callback_a, sync=True)
+    _watcher_b = watch(lambda: state["b"], callback_b, sync=True)
 
     def recipe(draft):
         draft["a"] = 10
         draft["b"] = 20
 
-    result, patches, _reverse = produce(state, recipe, in_place=True)
+    _result, _patches, _reverse = produce(state, recipe, in_place=True)
 
     # Both watchers should have been triggered
     assert len(changes_a) == 1
@@ -292,13 +292,13 @@ def test_watcher_triggered_on_list_append():
         changes.append(("length", new_val, old_val))
 
     # Watch the length of the list
-    watcher = watch(lambda: len(state["items"]), callback, sync=True)
+    _watcher = watch(lambda: len(state["items"]), callback, sync=True)
 
     def recipe(draft):
         draft["items"].append(4)
         draft["items"].append(5)
 
-    result, patches, _reverse = produce(state, recipe, in_place=True)
+    _result, _patches, _reverse = produce(state, recipe, in_place=True)
 
     # Watcher should have been triggered (possibly multiple times for each append)
     assert len(changes) >= 1

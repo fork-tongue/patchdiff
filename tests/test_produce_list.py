@@ -687,7 +687,7 @@ def test_list_setitem_invalidates_proxy_cache():
         # Access again - should get new structure, not cached proxy
         assert dict(draft[0]) == {"c": 3}
 
-    result, patches, _reverse = produce(base, recipe)
+    result, _patches, _reverse = produce(base, recipe)
 
     assert result == [{"c": 3}, {"b": 2}]
 
