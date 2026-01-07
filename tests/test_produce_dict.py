@@ -427,3 +427,154 @@ def test_dict_update_with_iterable_of_pairs():
 
     assert result == {"a": 1, "b": 2, "c": 3}
     assert len(patches) == 2
+
+
+def test_dict_update_with_kwargs():
+    """Test that update() works with keyword arguments."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        draft.update(b=2, c=3)
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": 2, "c": 3}
+    assert len(patches) == 2
+
+
+def test_dict_update_with_dict_and_kwargs():
+    """Test that update() works with both dict and keyword arguments."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        draft.update({"b": 2}, c=3, d=4)
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": 2, "c": 3, "d": 4}
+    assert len(patches) == 3
+
+
+def test_dict_update_empty():
+    """Test that update() with empty dict/no args is a no-op."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        draft.update({})
+        draft.update()
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": 2}
+    assert len(patches) == 0
+
+
+def test_dict_setdefault_none_implicit():
+    """Test setdefault() with implicit None default."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        value = draft.setdefault("b")
+        assert value is None
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": None}
+    assert len(patches) == 1
+    assert patches[0]["value"] is None
+
+
+def test_dict_setdefault_none_explicit():
+    """Test setdefault() with explicit None default."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        value = draft.setdefault("b", None)
+        assert value is None
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": None}
+    assert len(patches) == 1
+    assert patches[0]["value"] is None
+
+
+def test_dict_setdefault_return_value():
+    """Test that setdefault() returns the correct value."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        # Return existing value
+        val1 = draft.setdefault("a", 999)
+        assert val1 == 1
+
+        # Return new default value
+        val2 = draft.setdefault("b", 2)
+        assert val2 == 2
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": 2}
+
+
+def test_dict_clear_empty():
+    """Test clear() on an already empty dict."""
+    base = {}
+
+    def recipe(draft):
+        draft.clear()
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {}
+    assert len(patches) == 0
+
+
+def test_dict_popitem_lifo_order():
+    """Test that popitem() removes items in LIFO (last inserted) order."""
+    base = {}
+
+    def recipe(draft):
+        # Add items in order
+        draft["a"] = 1
+        draft["b"] = 2
+        draft["c"] = 3
+
+        # popitem should remove last inserted (LIFO)
+        key, value = draft.popitem()
+        assert key == "c"
+        assert value == 3
+
+        key, value = draft.popitem()
+        assert key == "b"
+        assert value == 2
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1}
+
+
+def test_dict_get_none_implicit():
+    """Test get() returns None implicitly when key missing."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        value = draft.get("b")
+        assert value is None
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1}
+
+
+def test_dict_get_none_explicit():
+    """Test get() with explicit None default."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        value = draft.get("b", None)
+        assert value is None
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1}

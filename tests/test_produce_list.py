@@ -702,3 +702,283 @@ def test_list_setitem_slice_step_length_mismatch():
 
     with pytest.raises(ValueError, match="attempt to assign sequence of size 2"):
         produce(base, recipe)
+
+
+def test_list_insert_at_beginning():
+    """Test insert() at index 0 (beginning)."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.insert(0, 0)
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [0, 1, 2, 3]
+    assert len(patches) == 1
+    assert patches[0]["op"] == "add"
+    assert patches[0]["path"].tokens == (0,)
+
+
+def test_list_insert_beyond_length():
+    """Test insert() with index > len (appends to end)."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.insert(100, 4)
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1, 2, 3, 4]
+    # Should add at the end
+    assert len(patches) == 1
+
+
+def test_list_insert_negative_index():
+    """Test insert() with negative index."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.insert(-1, 99)  # Insert before last element
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == [1, 2, 99, 3]
+
+
+def test_list_insert_large_negative_index():
+    """Test insert() with large negative index (inserts at beginning)."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.insert(-100, 0)
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == [0, 1, 2, 3]
+
+
+def test_list_pop_empty():
+    """Test pop() on empty list raises IndexError."""
+    base = []
+
+    def recipe(draft):
+        draft.pop()
+
+    with pytest.raises(IndexError, match="list index out of range"):
+        produce(base, recipe)
+
+
+def test_list_pop_out_of_range():
+    """Test pop() with out-of-range index raises IndexError."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.pop(10)
+
+    with pytest.raises(IndexError, match="list index out of range"):
+        produce(base, recipe)
+
+
+def test_list_remove_not_found():
+    """Test remove() with element not in list raises ValueError."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.remove(99)
+
+    with pytest.raises(ValueError, match="99 is not in list"):
+        produce(base, recipe)
+
+
+def test_list_remove_first_occurrence():
+    """Test remove() removes only first occurrence."""
+    base = [1, 2, 3, 2, 4]
+
+    def recipe(draft):
+        draft.remove(2)
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1, 3, 2, 4]  # First 2 removed
+    assert len(patches) == 1
+
+
+def test_list_extend_with_tuple():
+    """Test extend() with tuple."""
+    base = [1, 2]
+
+    def recipe(draft):
+        draft.extend((3, 4, 5))
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1, 2, 3, 4, 5]
+    assert len(patches) == 3
+
+
+def test_list_extend_with_empty():
+    """Test extend() with empty iterable (no-op)."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft.extend([])
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1, 2, 3]
+    assert len(patches) == 0
+
+
+def test_list_clear_empty():
+    """Test clear() on already empty list."""
+    base = []
+
+    def recipe(draft):
+        draft.clear()
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == []
+    assert len(patches) == 0
+
+
+def test_list_reverse_empty():
+    """Test reverse() on empty list."""
+    base = []
+
+    def recipe(draft):
+        draft.reverse()
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == []
+    assert len(patches) == 0
+
+
+def test_list_reverse_single_element():
+    """Test reverse() on single-element list."""
+    base = [1]
+
+    def recipe(draft):
+        draft.reverse()
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1]
+    assert len(patches) == 0
+
+
+def test_list_sort_empty():
+    """Test sort() on empty list."""
+    base = []
+
+    def recipe(draft):
+        draft.sort()
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == []
+    assert len(patches) == 0
+
+
+def test_list_sort_single_element():
+    """Test sort() on single-element list."""
+    base = [1]
+
+    def recipe(draft):
+        draft.sort()
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1]
+    assert len(patches) == 0
+
+
+def test_list_sort_with_key_and_reverse():
+    """Test sort() with both key and reverse parameters."""
+    base = ["apple", "pie", "a", "longer"]
+
+    def recipe(draft):
+        draft.sort(key=len, reverse=True)
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == ["longer", "apple", "pie", "a"]
+    # Should have patches for changed positions
+    assert len(patches) > 0
+
+
+def test_list_index_with_start():
+    """Test index() with start parameter."""
+    base = [1, 2, 3, 2, 4]
+
+    def recipe(draft):
+        # Find first 2
+        idx1 = draft.index(2)
+        assert idx1 == 1
+
+        # Find second 2 by starting search after first
+        idx2 = draft.index(2, 2)
+        assert idx2 == 3
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_list_index_with_start_and_end():
+    """Test index() with start and end parameters."""
+    base = [1, 2, 3, 4, 5, 2, 6]
+
+    def recipe(draft):
+        # Search for 2 in slice [0:4]
+        idx1 = draft.index(2, 0, 4)
+        assert idx1 == 1
+
+        # Search for 2 in slice [4:] - should find the second 2
+        idx2 = draft.index(2, 4)
+        assert idx2 == 5
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_list_index_with_negative_indices():
+    """Test index() with negative start/end indices."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        # Search last 3 elements
+        idx = draft.index(4, -3)
+        assert idx == 3
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_list_count_not_in_list():
+    """Test count() with element not in list returns 0."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        c = draft.count(99)
+        assert c == 0
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == base
+
+
+def test_list_count_empty_list():
+    """Test count() on empty list returns 0."""
+    base = []
+
+    def recipe(draft):
+        c = draft.count(1)
+        assert c == 0
+
+    result, _patches, _reverse = produce(base, recipe)
+
+    assert result == []
