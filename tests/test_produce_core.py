@@ -501,3 +501,295 @@ def test_complex_list_operations_patches_apply():
         draft.append({"id": 4})
 
     assert_patches_work(base, recipe)
+
+
+def test_deeply_nested_mixed_types_many_operations():
+    """Test deeply nested structure with all three proxy types and many operations."""
+    base = {
+        "organization": {
+            "departments": [
+                {
+                    "name": "Engineering",
+                    "teams": [
+                        {"name": "Backend", "members": {"alice", "bob"}},
+                        {"name": "Frontend", "members": {"charlie", "diana"}},
+                    ],
+                },
+                {
+                    "name": "Sales",
+                    "teams": [{"name": "Enterprise", "members": {"eve", "frank"}}],
+                },
+            ],
+            "metadata": {"founded": 2020, "tags": ["tech", "startup"]},
+        }
+    }
+
+    def recipe(draft):
+        # 1. Modify deeply nested value
+        draft["organization"]["metadata"]["founded"] = 2021
+
+        # 2. Add to deeply nested set
+        draft["organization"]["departments"][0]["teams"][0]["members"].add("grace")
+
+        # 3. Remove from deeply nested set
+        draft["organization"]["departments"][0]["teams"][0]["members"].remove("bob")
+
+        # 4. Modify nested dict
+        draft["organization"]["departments"][0]["name"] = "Engineering & Product"
+
+        # 5. Append to nested list
+        draft["organization"]["metadata"]["tags"].append("AI")
+
+        # 6. Insert into nested list
+        draft["organization"]["metadata"]["tags"].insert(0, "innovative")
+
+        # 7. Add new team to nested list
+        draft["organization"]["departments"][0]["teams"].append(
+            {"name": "DevOps", "members": {"henry"}}
+        )
+
+        # 8. Remove item from nested list
+        draft["organization"]["departments"].pop(1)
+
+        # 9. Update nested dict
+        draft["organization"]["metadata"].update({"employees": 50, "remote": True})
+
+        # 10. Clear and repopulate nested set
+        draft["organization"]["departments"][0]["teams"][1]["members"].clear()
+        draft["organization"]["departments"][0]["teams"][1]["members"].add("new_member")
+
+    result, patches, reverse = produce(base, recipe)
+
+    # Verify result
+    assert result["organization"]["metadata"]["founded"] == 2021
+    assert "grace" in result["organization"]["departments"][0]["teams"][0]["members"]
+    assert "bob" not in result["organization"]["departments"][0]["teams"][0]["members"]
+    assert result["organization"]["departments"][0]["name"] == "Engineering & Product"
+    assert result["organization"]["metadata"]["tags"][0] == "innovative"
+    assert "AI" in result["organization"]["metadata"]["tags"]
+    assert len(result["organization"]["departments"][0]["teams"]) == 3
+    assert len(result["organization"]["departments"]) == 1  # Sales removed
+    assert result["organization"]["metadata"]["employees"] == 50
+
+    # Verify patches were generated
+    assert len(patches) > 10
+
+    # Verify patches can be applied
+    from patchdiff import apply
+
+    patched = apply(base, patches)
+    assert patched == result
+
+    # Verify reverse patches work
+    reversed_result = apply(result, reverse)
+    assert reversed_result == base
+
+
+def test_list_of_dicts_with_sets_comprehensive():
+    """Test list of dicts containing sets with comprehensive operations."""
+    base = [
+        {"id": 1, "tags": {"python", "async"}, "scores": [85, 90, 92]},
+        {"id": 2, "tags": {"javascript", "react"}, "scores": [78, 82]},
+        {"id": 3, "tags": {"python", "django"}, "scores": [95, 88, 91]},
+    ]
+
+    def recipe(draft):
+        # Operations on first item
+        draft[0]["tags"].add("fastapi")
+        draft[0]["tags"].discard("async")
+        draft[0]["scores"].append(88)
+        draft[0]["scores"][0] = 87
+
+        # Operations on second item
+        draft[1]["id"] = 20
+        draft[1]["tags"] |= {"typescript", "redux"}
+        draft[1]["scores"].extend([85, 90])
+
+        # Operations on third item
+        draft[2]["tags"].remove("django")
+        draft[2]["scores"].reverse()
+        draft[2]["scores"].pop()
+
+        # List-level operations
+        draft.append({"id": 4, "tags": {"go", "kubernetes"}, "scores": [92]})
+        draft.insert(1, {"id": 5, "tags": set(), "scores": []})
+
+        # Slice operations
+        draft[3:5] = [{"id": 6, "tags": {"rust"}, "scores": [100]}]
+
+    result, patches, _reverse = produce(base, recipe)
+
+    # Verify complex nested modifications
+    # Index 0: modified first item
+    assert "fastapi" in result[0]["tags"]
+    assert "async" not in result[0]["tags"]
+    assert result[0]["scores"] == [87, 90, 92, 88]
+
+    # Index 1: inserted item (inserted at position 1)
+    assert result[1]["id"] == 5
+    assert result[1]["tags"] == set()
+
+    # Index 2: modified second item (shifted by insert)
+    assert result[2]["id"] == 20
+    assert "typescript" in result[2]["tags"]
+    assert len(result[2]["scores"]) == 4
+
+    # Index 3: slice replacement result
+    assert result[3]["id"] == 6
+    assert result[3]["tags"] == {"rust"}
+
+    # Total length after all operations
+    assert len(result) == 4
+
+    assert len(patches) > 15
+
+
+def test_dict_with_nested_lists_and_operations():
+    """Test dict containing nested lists with slice operations and sorting."""
+    base = {
+        "matrix": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+        "names": ["charlie", "alice", "bob"],
+        "records": [{"x": 3}, {"x": 1}, {"x": 2}],
+    }
+
+    def recipe(draft):
+        # Slice operations on nested lists
+        draft["matrix"][0][1:2] = [20]
+        draft["matrix"][1][:] = [40, 50, 60]
+        draft["matrix"][2].append(10)
+
+        # List operations
+        draft["names"].sort()
+        draft["names"].insert(0, "zara")
+
+        # Complex operations on list of dicts
+        draft["records"].sort(key=lambda r: r["x"])
+        draft["records"][0]["x"] = 10
+        draft["records"].append({"x": 4})
+
+        # Replace entire nested list
+        draft["matrix"].append([11, 12, 13])
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result["matrix"][0] == [1, 20, 3]
+    assert result["matrix"][1] == [40, 50, 60]
+    assert result["matrix"][2] == [7, 8, 9, 10]
+    assert result["names"] == ["zara", "alice", "bob", "charlie"]
+    assert result["records"][0]["x"] == 10
+    assert result["records"][-1]["x"] == 4
+    assert len(result["matrix"]) == 4
+
+    assert len(patches) > 10
+
+
+def test_set_operations_in_nested_structures():
+    """Test various set operations within nested structures."""
+    base = {
+        "groups": [
+            {"name": "admins", "users": {"alice", "bob"}},
+            {"name": "users", "users": {"charlie", "diana", "eve"}},
+            {"name": "guests", "users": {"frank"}},
+        ],
+        "all_users": {"alice", "bob", "charlie", "diana", "eve", "frank"},
+    }
+
+    def recipe(draft):
+        # Set operations on nested sets
+        draft["groups"][0]["users"].add("grace")
+        draft["groups"][0]["users"] |= {"henry", "iris"}  # update operator
+
+        # Set arithmetic on nested sets
+        draft["groups"][1]["users"] &= {"charlie", "eve"}  # intersection
+        draft["groups"][2]["users"].clear()
+        draft["groups"][2]["users"].update(["zara", "yolanda"])
+
+        # Operations on top-level set
+        draft["all_users"].add("grace")
+        draft["all_users"] -= {"frank"}  # difference update via operator
+
+        # List operations
+        draft["groups"].pop(1)
+        draft["groups"].append({"name": "moderators", "users": {"alice"}})
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert "grace" in result["groups"][0]["users"]
+    assert len(result["groups"][0]["users"]) == 5  # alice, bob, grace, henry, iris
+    assert result["groups"][1]["users"] == {"zara", "yolanda"}
+    assert len(result["groups"]) == 3
+    assert "grace" in result["all_users"]
+    assert "frank" not in result["all_users"]
+
+    assert len(patches) > 8
+
+
+def test_mixed_operations_with_slice_and_bulk_updates():
+    """Test mixed operations including slicing and bulk updates on nested structures."""
+    base = {
+        "data": {
+            "values": [10, 20, 30, 40, 50],
+            "metadata": {"count": 5, "sum": 150},
+        },
+        "backup": [[1, 2], [3, 4], [5, 6]],
+    }
+
+    def recipe(draft):
+        # Slice operations on nested list
+        draft["data"]["values"][1:4] = [200, 300]  # Shrink
+        draft["data"]["values"].extend([60, 70])
+
+        # Bulk update on nested dict
+        draft["data"]["metadata"].update({"count": 5, "sum": 630, "avg": 126})
+
+        # Operations on nested list of lists
+        draft["backup"][0].extend([3, 4, 5])
+        draft["backup"][1].clear()
+        draft["backup"][1].extend([30, 40])
+        draft["backup"].append([7, 8, 9])
+
+        # Replace nested structure
+        draft["data"]["extra"] = {"new": True}
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result["data"]["values"] == [10, 200, 300, 50, 60, 70]
+    assert result["data"]["metadata"]["avg"] == 126
+    assert result["backup"][0] == [1, 2, 3, 4, 5]
+    assert result["backup"][1] == [30, 40]
+    assert len(result["backup"]) == 4
+    assert result["data"]["extra"]["new"] is True
+
+    assert len(patches) > 12
+
+
+def test_cross_level_modifications():
+    """Test modifications at multiple nesting levels simultaneously."""
+    base = {
+        "level1": {
+            "level2": {"level3": {"level4": {"value": 1, "items": [1, 2, 3]}}},
+            "sibling": [{"a": 1}, {"b": 2}],
+        },
+        "top": "unchanged",
+    }
+
+    def recipe(draft):
+        # Modify at different levels
+        draft["top"] = "changed"  # Level 0
+        draft["level1"]["sibling"].append({"c": 3})  # Level 2
+        draft["level1"]["level2"]["level3"]["level4"]["value"] = 100  # Level 4
+        draft["level1"]["level2"]["level3"]["level4"]["items"].reverse()  # Level 4
+        draft["level1"]["level2"]["level3"]["level4"]["items"].append(4)  # Level 4
+        draft["level1"]["level2"]["new_key"] = "new_value"  # Level 2
+        draft["level1"]["sibling"][0]["a"] = 10  # Level 3
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result["top"] == "changed"
+    assert len(result["level1"]["sibling"]) == 3
+    assert result["level1"]["level2"]["level3"]["level4"]["value"] == 100
+    assert result["level1"]["level2"]["level3"]["level4"]["items"] == [3, 2, 1, 4]
+    assert result["level1"]["level2"]["new_key"] == "new_value"
+    assert result["level1"]["sibling"][0]["a"] == 10
+
+    assert len(patches) >= 7
