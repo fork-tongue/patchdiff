@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Hashable, Iterable, Tuple
+from typing import Any, Hashable, Iterable
 
 from .types import Diffable
 

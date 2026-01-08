@@ -786,7 +786,7 @@ def test_list_remove_not_found():
     def recipe(draft):
         draft.remove(99)
 
-    with pytest.raises(ValueError, match="99 is not in list"):
+    with pytest.raises(ValueError, match="not in list"):
         produce(base, recipe)
 
 

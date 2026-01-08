@@ -77,7 +77,12 @@ class PatchRecorder:
         """
         self.patches.append({"op": "remove", "path": path})
         self.reverse_patches.insert(
-            0, {"op": "add", "path": reverse_path if reverse_path else path, "value": old_value}
+            0,
+            {
+                "op": "add",
+                "path": reverse_path if reverse_path else path,
+                "value": old_value,
+            },
         )
 
     def record_replace(self, path: Pointer, old_value: Any, new_value: Any) -> None:
