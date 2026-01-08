@@ -76,7 +76,7 @@ print(patches)
 # ]
 ```
 
-When used for reactive state management (e.g., with [observ](https://github.com/fork-tongue/observ)), use `in_place=True` to mutate the original object:
+When immutability is not needed, it is possible to apply the ops directly, improving performance even further by not having to make a `deepcopy` of the given state. 
 
 ```python
 from observ import reactive
@@ -94,5 +94,3 @@ result, patches, reverse = produce(
 assert result is state  # Same object
 assert state["count"] == 5  # State was mutated, watchers triggered
 ```
-
-This prevents a `deepcopy` so can improve performance even further in cases where it is OK to diverge from Immers immutable state concepts.
