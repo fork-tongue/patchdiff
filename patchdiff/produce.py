@@ -62,10 +62,23 @@ class PatchRecorder:
             0, {"op": "remove", "path": reverse_path if reverse_path else path}
         )
 
-    def record_remove(self, path: Pointer, old_value: Any) -> None:
-        """Record a remove operation."""
+    def record_remove(
+        self, path: Pointer, old_value: Any, reverse_path: Pointer | None = None
+    ) -> None:
+        """Record a remove operation.
+
+        Args:
+            path: The path where the item is being removed
+            old_value: The value being removed
+            reverse_path: Optional path for the reverse (add) operation.
+                         If not provided, uses the same path. This is needed
+                         for lists where remove uses "/index" but add needs "/-"
+                         when removing from the end.
+        """
         self.patches.append({"op": "remove", "path": path})
-        self.reverse_patches.insert(0, {"op": "add", "path": path, "value": old_value})
+        self.reverse_patches.insert(
+            0, {"op": "add", "path": reverse_path if reverse_path else path, "value": old_value}
+        )
 
     def record_replace(self, path: Pointer, old_value: Any, new_value: Any) -> None:
         """Record a replace operation, but only if the value actually changed."""
@@ -381,7 +394,11 @@ class ListProxy:
             index = len(self._data) + index
         old_value = self._data[index]
         path = self._path.append(index)
-        self._recorder.record_remove(path, old_value)
+        # If popping from the end, the reverse (add) operation should use "-" to append
+        # rather than a specific index, since the index may not exist when reversing
+        is_last = index == len(self._data) - 1
+        reverse_path = self._path.append("-") if is_last else None
+        self._recorder.record_remove(path, old_value, reverse_path)
         result = self._data.pop(index)
         # Invalidate all proxy caches as indices shift
         self._proxies.clear()
@@ -393,9 +410,11 @@ class ListProxy:
 
     def clear(self) -> None:
         # Generate patches for all elements (from end to start for correct indices)
+        # All reverse patches use "-" to append, since we're restoring to an empty list
+        reverse_path = self._path.append("-")
         for i in range(len(self._data) - 1, -1, -1):
             path = self._path.append(i)
-            self._recorder.record_remove(path, self._data[i])
+            self._recorder.record_remove(path, self._data[i], reverse_path)
         self._data.clear()
         self._proxies.clear()
 

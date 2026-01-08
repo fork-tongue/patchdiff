@@ -46,7 +46,7 @@ class Pointer:
             return False
         return self.tokens == other.tokens
 
-    def evaluate(self, obj: Diffable) -> Tuple[Diffable, Hashable, Any]:
+    def evaluate(self, obj: Diffable) -> tuple[Diffable, Hashable, Any]:
         key = ""
         parent = None
         cursor = obj
@@ -55,8 +55,8 @@ class Pointer:
                 for key in tokens:
                     parent = cursor
                     cursor = parent[key]
-            except (KeyError, TypeError, IndexError):
-                # KeyError for dicts, TypeError for sets, IndexError for lists
+            except (KeyError, TypeError):
+                # KeyError for dicts, TypeError for sets and lists
                 pass
         return parent, key, cursor
 
