@@ -41,7 +41,7 @@ class Pointer:
     def __hash__(self) -> int:
         return hash(self.tokens)
 
-    def __eq__(self, other: "Pointer") -> bool:
+    def __eq__(self, other: Any) -> bool:
         if other.__class__ != self.__class__:
             return False
         return self.tokens == other.tokens
