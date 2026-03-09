@@ -163,7 +163,11 @@ class DictProxy:
             old_value = self._data[key]
             path = self._path.append(key)
             self._recorder.record_remove(path, old_value)
-            return self._data.pop(key)
+            result = self._data.pop(key)
+            # Invalidate proxy cache for this key
+            if key in self._proxies:
+                del self._proxies[key]
+            return result
         elif args:
             return args[0]
         else:
@@ -211,6 +215,9 @@ class DictProxy:
         key, value = self._data.popitem()
         path = self._path.append(key)
         self._recorder.record_remove(path, value)
+        # Invalidate proxy cache for this key
+        if key in self._proxies:
+            del self._proxies[key]
         return key, value
 
 
