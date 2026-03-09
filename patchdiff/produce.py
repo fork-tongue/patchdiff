@@ -122,9 +122,7 @@ class DictProxy:
             )
             return self._proxies[key]
         elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
-            self._proxies[key] = SetProxy(
-                value, self._recorder, self._path.append(key)
-            )
+            self._proxies[key] = SetProxy(value, self._recorder, self._path.append(key))
             return self._proxies[key]
         return value
 
