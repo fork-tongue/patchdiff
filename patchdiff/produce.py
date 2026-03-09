@@ -444,15 +444,17 @@ class ListProxy:
 
     def reverse(self) -> None:
         """Reverse the list in place and generate appropriate patches."""
-        # Record the old state
-        old_list = list(self._data)
+        n = len(self._data)
         # Reverse the underlying data
         self._data.reverse()
         # Generate patches for each changed position
-        for i in range(len(self._data)):
-            if i < len(old_list) and old_list[i] != self._data[i]:
+        # After reverse, element at position i came from position n-1-i
+        for i in range(n):
+            old_value = self._data[n - 1 - i]
+            new_value = self._data[i]
+            if old_value != new_value:
                 path = self._path.append(i)
-                self._recorder.record_replace(path, old_list[i], self._data[i])
+                self._recorder.record_replace(path, old_value, new_value)
         # Invalidate all proxy caches as positions changed
         self._proxies.clear()
 
