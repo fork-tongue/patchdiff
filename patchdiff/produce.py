@@ -106,24 +106,25 @@ class DictProxy:
 
     def _wrap(self, key: Any, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
+        # Check cache first - it's faster than hasattr() calls
+        if key in self._proxies:
+            return self._proxies[key]
+
         # Use duck typing to support observ reactive objects and other proxies
         if hasattr(value, "keys"):  # dict-like
-            if key not in self._proxies:
-                self._proxies[key] = DictProxy(
-                    value, self._recorder, self._path.append(key)
-                )
+            self._proxies[key] = DictProxy(
+                value, self._recorder, self._path.append(key)
+            )
             return self._proxies[key]
         elif hasattr(value, "append"):  # list-like
-            if key not in self._proxies:
-                self._proxies[key] = ListProxy(
-                    value, self._recorder, self._path.append(key)
-                )
+            self._proxies[key] = ListProxy(
+                value, self._recorder, self._path.append(key)
+            )
             return self._proxies[key]
         elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
-            if key not in self._proxies:
-                self._proxies[key] = SetProxy(
-                    value, self._recorder, self._path.append(key)
-                )
+            self._proxies[key] = SetProxy(
+                value, self._recorder, self._path.append(key)
+            )
             return self._proxies[key]
         return value
 
@@ -241,24 +242,25 @@ class ListProxy:
 
     def _wrap(self, index: int, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
+        # Check cache first - it's faster than hasattr() calls
+        if index in self._proxies:
+            return self._proxies[index]
+
         # Use duck typing to support observ reactive objects and other proxies
         if hasattr(value, "keys"):  # dict-like
-            if index not in self._proxies:
-                self._proxies[index] = DictProxy(
-                    value, self._recorder, self._path.append(index)
-                )
+            self._proxies[index] = DictProxy(
+                value, self._recorder, self._path.append(index)
+            )
             return self._proxies[index]
         elif hasattr(value, "append"):  # list-like
-            if index not in self._proxies:
-                self._proxies[index] = ListProxy(
-                    value, self._recorder, self._path.append(index)
-                )
+            self._proxies[index] = ListProxy(
+                value, self._recorder, self._path.append(index)
+            )
             return self._proxies[index]
         elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
-            if index not in self._proxies:
-                self._proxies[index] = SetProxy(
-                    value, self._recorder, self._path.append(index)
-                )
+            self._proxies[index] = SetProxy(
+                value, self._recorder, self._path.append(index)
+            )
             return self._proxies[index]
         return value
 
