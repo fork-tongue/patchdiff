@@ -155,7 +155,7 @@ class DictProxy:
             return self[key]
         return default
 
-    def pop(self, key: Any, *args):
+    def pop(self, key: Any, default=None):
         if key in self._data:
             old_value = self._data[key]
             path = self._path.append(key)
@@ -165,8 +165,8 @@ class DictProxy:
             if key in self._proxies:
                 del self._proxies[key]
             return result
-        elif args:
-            return args[0]
+        elif default:
+            return default
         else:
             raise KeyError(key)
 
