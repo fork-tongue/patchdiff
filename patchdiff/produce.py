@@ -112,18 +112,17 @@ class DictProxy:
 
         # Use duck typing to support observ reactive objects and other proxies
         if hasattr(value, "keys"):  # dict-like
-            self._proxies[key] = DictProxy(
-                value, self._recorder, self._path.append(key)
-            )
-            return self._proxies[key]
+            proxy = DictProxy(value, self._recorder, self._path.append(key))
+            self._proxies[key] = proxy
+            return proxy
         elif hasattr(value, "append"):  # list-like
-            self._proxies[key] = ListProxy(
-                value, self._recorder, self._path.append(key)
-            )
-            return self._proxies[key]
+            proxy = ListProxy(value, self._recorder, self._path.append(key))
+            self._proxies[key] = proxy
+            return proxy
         elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
-            self._proxies[key] = SetProxy(value, self._recorder, self._path.append(key))
-            return self._proxies[key]
+            proxy = SetProxy(value, self._recorder, self._path.append(key))
+            self._proxies[key] = proxy
+            return proxy
         return value
 
     def __getitem__(self, key: Any) -> Any:
@@ -253,20 +252,17 @@ class ListProxy:
 
         # Use duck typing to support observ reactive objects and other proxies
         if hasattr(value, "keys"):  # dict-like
-            self._proxies[index] = DictProxy(
-                value, self._recorder, self._path.append(index)
-            )
-            return self._proxies[index]
+            proxy = DictProxy(value, self._recorder, self._path.append(index))
+            self._proxies[index] = proxy
+            return proxy
         elif hasattr(value, "append"):  # list-like
-            self._proxies[index] = ListProxy(
-                value, self._recorder, self._path.append(index)
-            )
-            return self._proxies[index]
+            proxy = ListProxy(value, self._recorder, self._path.append(index))
+            self._proxies[index] = proxy
+            return proxy
         elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
-            self._proxies[index] = SetProxy(
-                value, self._recorder, self._path.append(index)
-            )
-            return self._proxies[index]
+            proxy = SetProxy(value, self._recorder, self._path.append(index))
+            self._proxies[index] = proxy
+            return proxy
         return value
 
     def __getitem__(self, index: Union[int, slice]) -> Any:
