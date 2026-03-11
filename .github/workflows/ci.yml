@@ -5,7 +5,7 @@ on:
     branches:
       - master
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     branches:
       - master
@@ -19,25 +19,25 @@ jobs:
       matrix:
         include:
           - name: Linux py38
-            pyversion: '3.8'
+            pyversion: "3.8"
           - name: Linux py39
-            pyversion: '3.9'
+            pyversion: "3.9"
           - name: Linux py310
-            pyversion: '3.10'
+            pyversion: "3.10"
           - name: Linux py311
-            pyversion: '3.11'
+            pyversion: "3.11"
           - name: Linux py312
-            pyversion: '3.12'
+            pyversion: "3.12"
           - name: Linux py313
-            pyversion: '3.13'
+            pyversion: "3.13"
           - name: Linux py314
-            pyversion: '3.14'
+            pyversion: "3.14"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
       - name: Set up Python ${{ matrix.pyversion }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.pyversion }}
       - name: Install dependencies
@@ -53,24 +53,24 @@ jobs:
     name: Build and test wheel
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
-    - name: Install uv
-      uses: astral-sh/setup-uv@v6
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.9'
-    - name: Install dependencies
-      run: uv sync
-    - name: Build wheel
-      run: uv build
-    - name: Twine check
-      run: uvx twine check dist/*
-    - name: Upload wheel artifact
-      uses: actions/upload-artifact@v4
-      with:
-        path: dist
-        name: dist
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+      - name: Install dependencies
+        run: uv sync
+      - name: Build wheel
+        run: uv build
+      - name: Twine check
+        run: uvx twine check dist/*
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v6
+        with:
+          path: dist
+          name: dist
 
   publish:
     name: Publish to Github and Pypi
@@ -84,20 +84,20 @@ jobs:
       id-token: write
       contents: write
     steps:
-    - uses: actions/checkout@v5
-    - name: Download wheel artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: dist
-        path: dist
-    - name: Release
-      uses: softprops/action-gh-release@v2
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        files: |
-          dist/*.tar.gz
-          dist/*.whl
-        draft: true
-        prerelease: false
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: actions/checkout@v6
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            dist/*.tar.gz
+            dist/*.whl
+          draft: true
+          prerelease: false
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
