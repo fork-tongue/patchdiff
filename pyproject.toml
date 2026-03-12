@@ -6,7 +6,7 @@ authors = [
     { name = "Korijn van Golen", email = "korijn@gmail.com" },
     { name = "Berend Klein Haneveld", email = "berendkleinhaneveld@gmail.com" },
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 readme = "README.md"
 
 [project.urls]
@@ -19,6 +19,9 @@ dev = [
     "pytest-cov",
     "pytest-watch",
     "pytest-benchmark",
+]
+observ = [
+    "observ>=0.17.0",
 ]
 
 [tool.ruff.lint]
@@ -37,3 +40,6 @@ extend-select = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+addopts = "--benchmark-columns='mean, stddev, rounds'"

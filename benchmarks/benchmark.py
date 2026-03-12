@@ -14,12 +14,21 @@ Fail if performance degrades >5%:
     uv run pytest benchmarks/benchmark.py --benchmark-only --benchmark-compare=0001 --benchmark-compare-fail=mean:5%
 """
 
+import copy
 import random
 
 import pytest
 
-from patchdiff import apply, diff
+from patchdiff import apply, diff, produce
 from patchdiff.pointer import Pointer
+
+# Optional observ integration for benchmarks
+try:
+    from observ import reactive, to_raw
+
+    OBSERV_AVAILABLE = True
+except ImportError:
+    OBSERV_AVAILABLE = False
 
 # Set seed for reproducibility
 random.seed(42)
@@ -230,3 +239,473 @@ def test_pointer_append(benchmark):
     ptr = Pointer.from_str("/a/b/c/d/e/f/g/h/i/j")
 
     benchmark(ptr.append, "k")
+
+
+# ========================================
+# Produce vs Diff Comparison Benchmarks
+# ========================================
+
+
+# --- Dict Benchmarks ---
+
+DICT_SMALL_BASE = {f"key_{i}": i for i in range(100)}
+DICT_LARGE_BASE = {f"key_{i}": i for i in range(1000)}
+
+
+def dict_small_mutations_recipe(draft):
+    """Recipe for small dict mutations."""
+    draft["key_10"] = 999
+    draft["new_key"] = "new_value"
+    del draft["key_50"]
+
+
+def dict_many_mutations_recipe(draft):
+    """Recipe for many dict mutations."""
+    # Modify 20% of keys
+    for i in range(200):
+        draft[f"key_{i}"] = i + 10000
+    # Add 10% new keys
+    for i in range(100):
+        draft[f"new_key_{i}"] = i
+    # Remove 10% of keys
+    for i in range(100):
+        del draft[f"key_{i + 200}"]
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-dict")
+def test_diff_dict_small_mutations(benchmark):
+    """Benchmark: diff() on dict with small mutations (baseline)."""
+
+    def run():
+        result = copy.deepcopy(DICT_SMALL_BASE)
+        dict_small_mutations_recipe(result)
+        return diff(DICT_SMALL_BASE, result)
+
+    benchmark(run)
+
+
+@pytest.mark.parametrize("in_place", [False, True], ids=["copy", "in_place"])
+@pytest.mark.benchmark(group="produce-vs-diff-dict")
+def test_produce_dict_small_mutations(benchmark, in_place):
+    """Benchmark: produce() on dict with small mutations."""
+
+    def run():
+        data = copy.deepcopy(DICT_SMALL_BASE)
+        return produce(data, dict_small_mutations_recipe, in_place=in_place)
+
+    benchmark(run)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-dict")
+def test_diff_dict_many_mutations(benchmark):
+    """Benchmark: diff() on dict with many mutations (baseline)."""
+
+    def run():
+        result = copy.deepcopy(DICT_LARGE_BASE)
+        dict_many_mutations_recipe(result)
+        return diff(DICT_LARGE_BASE, result)
+
+    benchmark(run)
+
+
+@pytest.mark.parametrize("in_place", [False, True], ids=["copy", "in_place"])
+@pytest.mark.benchmark(group="produce-vs-diff-dict")
+def test_produce_dict_many_mutations(benchmark, in_place):
+    """Benchmark: produce() on dict with many mutations."""
+
+    def run():
+        data = copy.deepcopy(DICT_LARGE_BASE)
+        return produce(data, dict_many_mutations_recipe, in_place=in_place)
+
+    benchmark(run)
+
+
+# --- List Benchmarks ---
+
+LIST_BASE = list(range(100))
+
+
+def list_small_mutations_recipe(draft):
+    """Recipe for small list mutations."""
+    draft.append(999)
+    draft.insert(10, 888)
+    draft[50] = 777
+    del draft[20]
+
+
+def list_many_appends_recipe(draft):
+    """Recipe for many list appends."""
+    for i in range(100):
+        draft.append(i + 1000)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-list")
+def test_diff_list_small_mutations(benchmark):
+    """Benchmark: diff() on list with small mutations (baseline)."""
+
+    def run():
+        result = copy.deepcopy(LIST_BASE)
+        list_small_mutations_recipe(result)
+        return diff(LIST_BASE, result)
+
+    benchmark(run)
+
+
+@pytest.mark.parametrize("in_place", [False, True], ids=["copy", "in_place"])
+@pytest.mark.benchmark(group="produce-vs-diff-list")
+def test_produce_list_small_mutations(benchmark, in_place):
+    """Benchmark: produce() on list with small mutations."""
+
+    def run():
+        data = copy.deepcopy(LIST_BASE)
+        return produce(data, list_small_mutations_recipe, in_place=in_place)
+
+    benchmark(run)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-list")
+def test_diff_list_many_appends(benchmark):
+    """Benchmark: diff() on list with many appends (baseline)."""
+
+    def run():
+        result = copy.deepcopy(LIST_BASE)
+        list_many_appends_recipe(result)
+        return diff(LIST_BASE, result)
+
+    benchmark(run)
+
+
+@pytest.mark.parametrize("in_place", [False, True], ids=["copy", "in_place"])
+@pytest.mark.benchmark(group="produce-vs-diff-list")
+def test_produce_list_many_appends(benchmark, in_place):
+    """Benchmark: produce() on list with many appends."""
+
+    def run():
+        data = copy.deepcopy(LIST_BASE)
+        return produce(data, list_many_appends_recipe, in_place=in_place)
+
+    benchmark(run)
+
+
+# --- Nested Structure Benchmarks ---
+
+NESTED_BASE = {
+    "users": [
+        {"name": f"User{i}", "age": 20 + i, "tags": set(range(i, i + 5))}
+        for i in range(50)
+    ]
+}
+
+
+def nested_structure_recipe(draft):
+    """Recipe for nested structure mutations."""
+    draft["users"][10]["age"] = 99
+    draft["users"][10]["tags"].add(999)
+    draft["users"].append({"name": "NewUser", "age": 25, "tags": {1, 2, 3}})
+    draft["admin"] = True
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-nested")
+def test_diff_nested_structure(benchmark):
+    """Benchmark: diff() on nested dict/list structure (baseline)."""
+
+    def run():
+        result = copy.deepcopy(NESTED_BASE)
+        nested_structure_recipe(result)
+        return diff(NESTED_BASE, result)
+
+    benchmark(run)
+
+
+@pytest.mark.parametrize("in_place", [False, True], ids=["copy", "in_place"])
+@pytest.mark.benchmark(group="produce-vs-diff-nested")
+def test_produce_nested_structure(benchmark, in_place):
+    """Benchmark: produce() on nested dict/list structure."""
+
+    def run():
+        data = copy.deepcopy(NESTED_BASE)
+        return produce(data, nested_structure_recipe, in_place=in_place)
+
+    benchmark(run)
+
+
+# --- Set Benchmarks ---
+
+SET_BASE = set(range(500))
+
+
+def set_mutations_recipe(draft):
+    """Recipe for set mutations."""
+    for i in range(50):
+        draft.add(i + 1000)
+    for i in range(50):
+        draft.discard(i)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-set")
+def test_diff_set_mutations(benchmark):
+    """Benchmark: diff() on set with mutations (baseline)."""
+
+    def run():
+        result = copy.deepcopy(SET_BASE)
+        set_mutations_recipe(result)
+        return diff(SET_BASE, result)
+
+    benchmark(run)
+
+
+@pytest.mark.parametrize("in_place", [False, True], ids=["copy", "in_place"])
+@pytest.mark.benchmark(group="produce-vs-diff-set")
+def test_produce_set_mutations(benchmark, in_place):
+    """Benchmark: produce() on set with mutations."""
+
+    def run():
+        data = copy.deepcopy(SET_BASE)
+        return produce(data, set_mutations_recipe, in_place=in_place)
+
+    benchmark(run)
+
+
+# --- Deep Nested Benchmarks ---
+
+DEEP_NESTED_BASE = {
+    "level1": {"level2": {"level3": {"level4": {"data": list(range(100))}}}}
+}
+
+
+def deep_nested_recipe(draft):
+    """Recipe for deep nested mutation."""
+    draft["level1"]["level2"]["level3"]["level4"]["data"].append(999)
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-deep")
+def test_diff_deep_nested_mutation(benchmark):
+    """Benchmark: diff() with deep nested mutation (baseline)."""
+
+    def run():
+        result = copy.deepcopy(DEEP_NESTED_BASE)
+        deep_nested_recipe(result)
+        return diff(DEEP_NESTED_BASE, result)
+
+    benchmark(run)
+
+
+@pytest.mark.parametrize("in_place", [False, True], ids=["copy", "in_place"])
+@pytest.mark.benchmark(group="produce-vs-diff-deep")
+def test_produce_deep_nested_mutation(benchmark, in_place):
+    """Benchmark: produce() with deep nested mutation."""
+
+    def run():
+        data = copy.deepcopy(DEEP_NESTED_BASE)
+        return produce(data, deep_nested_recipe, in_place=in_place)
+
+    benchmark(run)
+
+
+# --- Sparse Mutations Benchmarks ---
+
+SPARSE_BASE = {f"key_{i}": list(range(100)) for i in range(100)}
+
+
+def sparse_mutations_recipe(draft):
+    """Recipe for sparse mutations on large object."""
+    # Only mutate 3 keys out of 100
+    draft["key_10"][0] = 999
+    draft["key_50"][50] = 888
+    draft["key_90"][90] = 777
+
+
+@pytest.mark.benchmark(group="produce-vs-diff-sparse")
+def test_diff_sparse_mutations_large_object(benchmark):
+    """Benchmark: diff() with sparse mutations on large object (baseline)."""
+
+    def run():
+        result = copy.deepcopy(SPARSE_BASE)
+        sparse_mutations_recipe(result)
+        return diff(SPARSE_BASE, result)
+
+    benchmark(run)
+
+
+@pytest.mark.parametrize("in_place", [False, True], ids=["copy", "in_place"])
+@pytest.mark.benchmark(group="produce-vs-diff-sparse")
+def test_produce_sparse_mutations_large_object(benchmark, in_place):
+    """Benchmark: produce() with sparse mutations on large object."""
+
+    def run():
+        data = copy.deepcopy(SPARSE_BASE)
+        return produce(data, sparse_mutations_recipe, in_place=in_place)
+
+    benchmark(run)
+
+
+# ========================================
+# Observ + produce(in_place=True) Benchmarks
+# ========================================
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-diff")
+def test_diff_observ_dict_mutations(benchmark):
+    """Benchmark: diff() on observ reactive dict (baseline)."""
+    base_data = {f"key_{i}": i for i in range(100)}
+
+    def run():
+        state = reactive(base_data.copy())
+        result = reactive(base_data.copy())
+        result["key_10"] = 999
+        result["new_key"] = "new_value"
+        del result["key_50"]
+        return diff(to_raw(state), to_raw(result))
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-produce")
+def test_produce_observ_dict_mutations_copy(benchmark):
+    """Benchmark: produce() on observ reactive dict (copy mode)."""
+    base_data = {f"key_{i}": i for i in range(100)}
+
+    def run():
+        state = reactive(base_data.copy())
+
+        def recipe(draft):
+            draft["key_10"] = 999
+            draft["new_key"] = "new_value"
+            del draft["key_50"]
+
+        return produce(state, recipe, in_place=False)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-produce")
+def test_produce_observ_dict_mutations_in_place(benchmark):
+    """Benchmark: produce() on observ reactive dict (in_place=True)."""
+    base_data = {f"key_{i}": i for i in range(100)}
+
+    def run():
+        state = reactive(base_data.copy())
+
+        def recipe(draft):
+            draft["key_10"] = 999
+            draft["new_key"] = "new_value"
+            del draft["key_50"]
+
+        return produce(state, recipe, in_place=True)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-nested")
+def test_diff_observ_nested_structure(benchmark):
+    """Benchmark: diff() on nested observ reactive structure (baseline)."""
+    base_data = {
+        "users": [{"name": f"User{i}", "age": 20 + i} for i in range(50)],
+        "settings": {"theme": "light"},
+    }
+
+    def run():
+        state = reactive(base_data.copy())
+        result = reactive(base_data.copy())
+        result["users"][10]["age"] = 99
+        result["settings"]["theme"] = "dark"
+        result["admin"] = True
+        return diff(to_raw(state), to_raw(result))
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-nested")
+def test_produce_observ_nested_in_place(benchmark):
+    """Benchmark: produce(in_place=True) on nested observ reactive structure."""
+    base_data = {
+        "users": [{"name": f"User{i}", "age": 20 + i} for i in range(50)],
+        "settings": {"theme": "light"},
+    }
+
+    def run():
+        state = reactive(base_data.copy())
+
+        def recipe(draft):
+            draft["users"][10]["age"] = 99
+            draft["settings"]["theme"] = "dark"
+            draft["admin"] = True
+
+        return produce(state, recipe, in_place=True)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-list")
+def test_produce_observ_list_many_appends_copy(benchmark):
+    """Benchmark: produce() on observ reactive list (copy mode)."""
+
+    def run():
+        state = reactive(list(range(100)))
+
+        def recipe(draft):
+            for i in range(100):
+                draft.append(i + 1000)
+
+        return produce(state, recipe, in_place=False)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-list")
+def test_produce_observ_list_many_appends_in_place(benchmark):
+    """Benchmark: produce(in_place=True) on observ reactive list."""
+
+    def run():
+        state = reactive(list(range(100)))
+
+        def recipe(draft):
+            for i in range(100):
+                draft.append(i + 1000)
+
+        return produce(state, recipe, in_place=True)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-performance")
+def test_produce_in_place_vs_copy_dict(benchmark):
+    """Benchmark: Compare in_place=True vs in_place=False for dict."""
+    base_data = {f"key_{i}": i for i in range(1000)}
+
+    def run():
+        state = reactive(base_data.copy())
+
+        def recipe(draft):
+            for i in range(100):
+                draft[f"key_{i}"] = i + 10000
+
+        return produce(state, recipe, in_place=True)
+
+    benchmark(run)
+
+
+@pytest.mark.skipif(not OBSERV_AVAILABLE, reason="observ not installed")
+@pytest.mark.benchmark(group="observ-performance")
+def test_produce_copy_mode_dict(benchmark):
+    """Benchmark: produce() with in_place=False for comparison."""
+    base_data = {f"key_{i}": i for i in range(1000)}
+
+    def run():
+        state = reactive(base_data.copy())
+
+        def recipe(draft):
+            for i in range(100):
+                draft[f"key_{i}"] = i + 10000
+
+        return produce(state, recipe, in_place=False)
+
+    benchmark(run)
