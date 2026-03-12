@@ -106,25 +106,23 @@ class DictProxy:
 
     def _wrap(self, key: Any, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
+        # Check cache first - it's faster than hasattr() calls
+        if key in self._proxies:
+            return self._proxies[key]
+
         # Use duck typing to support observ reactive objects and other proxies
         if hasattr(value, "keys"):  # dict-like
-            if key not in self._proxies:
-                self._proxies[key] = DictProxy(
-                    value, self._recorder, self._path.append(key)
-                )
-            return self._proxies[key]
+            proxy = DictProxy(value, self._recorder, self._path.append(key))
+            self._proxies[key] = proxy
+            return proxy
         elif hasattr(value, "append"):  # list-like
-            if key not in self._proxies:
-                self._proxies[key] = ListProxy(
-                    value, self._recorder, self._path.append(key)
-                )
-            return self._proxies[key]
+            proxy = ListProxy(value, self._recorder, self._path.append(key))
+            self._proxies[key] = proxy
+            return proxy
         elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
-            if key not in self._proxies:
-                self._proxies[key] = SetProxy(
-                    value, self._recorder, self._path.append(key)
-                )
-            return self._proxies[key]
+            proxy = SetProxy(value, self._recorder, self._path.append(key))
+            self._proxies[key] = proxy
+            return proxy
         return value
 
     def __getitem__(self, key: Any) -> Any:
@@ -157,14 +155,18 @@ class DictProxy:
             return self[key]
         return default
 
-    def pop(self, key: Any, *args):
+    def pop(self, key: Any, default=None):
         if key in self._data:
             old_value = self._data[key]
             path = self._path.append(key)
             self._recorder.record_remove(path, old_value)
-            return self._data.pop(key)
-        elif args:
-            return args[0]
+            result = self._data.pop(key)
+            # Invalidate proxy cache for this key
+            if key in self._proxies:
+                del self._proxies[key]
+            return result
+        elif default:
+            return default
         else:
             raise KeyError(key)
 
@@ -210,6 +212,9 @@ class DictProxy:
         key, value = self._data.popitem()
         path = self._path.append(key)
         self._recorder.record_remove(path, value)
+        # Invalidate proxy cache for this key
+        if key in self._proxies:
+            del self._proxies[key]
         return key, value
 
 
@@ -241,25 +246,23 @@ class ListProxy:
 
     def _wrap(self, index: int, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
+        # Check cache first - it's faster than hasattr() calls
+        if index in self._proxies:
+            return self._proxies[index]
+
         # Use duck typing to support observ reactive objects and other proxies
         if hasattr(value, "keys"):  # dict-like
-            if index not in self._proxies:
-                self._proxies[index] = DictProxy(
-                    value, self._recorder, self._path.append(index)
-                )
-            return self._proxies[index]
+            proxy = DictProxy(value, self._recorder, self._path.append(index))
+            self._proxies[index] = proxy
+            return proxy
         elif hasattr(value, "append"):  # list-like
-            if index not in self._proxies:
-                self._proxies[index] = ListProxy(
-                    value, self._recorder, self._path.append(index)
-                )
-            return self._proxies[index]
+            proxy = ListProxy(value, self._recorder, self._path.append(index))
+            self._proxies[index] = proxy
+            return proxy
         elif hasattr(value, "add") and hasattr(value, "discard"):  # set-like
-            if index not in self._proxies:
-                self._proxies[index] = SetProxy(
-                    value, self._recorder, self._path.append(index)
-                )
-            return self._proxies[index]
+            proxy = SetProxy(value, self._recorder, self._path.append(index))
+            self._proxies[index] = proxy
+            return proxy
         return value
 
     def __getitem__(self, index: Union[int, slice]) -> Any:
@@ -435,15 +438,17 @@ class ListProxy:
 
     def reverse(self) -> None:
         """Reverse the list in place and generate appropriate patches."""
-        # Record the old state
-        old_list = list(self._data)
+        n = len(self._data)
         # Reverse the underlying data
         self._data.reverse()
         # Generate patches for each changed position
-        for i in range(len(self._data)):
-            if i < len(old_list) and old_list[i] != self._data[i]:
+        # After reverse, element at position i came from position n-1-i
+        for i in range(n):
+            old_value = self._data[n - 1 - i]
+            new_value = self._data[i]
+            if old_value != new_value:
                 path = self._path.append(i)
-                self._recorder.record_replace(path, old_list[i], self._data[i])
+                self._recorder.record_replace(path, old_value, new_value)
         # Invalidate all proxy caches as positions changed
         self._proxies.clear()
 
