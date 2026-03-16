@@ -585,7 +585,7 @@ def test_set_or_operator():
         assert isinstance(new, set)
         assert new == {1, 2, 3, 4, 5}
 
-    result, patches, _reverse = produce(base, recipe)
+    _result, patches, _reverse = produce(base, recipe)
 
     assert patches == []
 
@@ -599,7 +599,7 @@ def test_set_and_operator():
         assert isinstance(new, set)
         assert new == {2, 3}
 
-    result, patches, _reverse = produce(base, recipe)
+    _result, patches, _reverse = produce(base, recipe)
 
     assert patches == []
 
@@ -613,7 +613,7 @@ def test_set_sub_operator():
         assert isinstance(new, set)
         assert new == {1, 3}
 
-    result, patches, _reverse = produce(base, recipe)
+    _result, patches, _reverse = produce(base, recipe)
 
     assert patches == []
 
@@ -627,7 +627,7 @@ def test_set_xor_operator():
         assert isinstance(new, set)
         assert new == {1, 4}
 
-    result, patches, _reverse = produce(base, recipe)
+    _result, patches, _reverse = produce(base, recipe)
 
     assert patches == []
 

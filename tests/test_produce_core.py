@@ -3,6 +3,7 @@
 import pytest
 
 from patchdiff import apply, produce
+from patchdiff.produce import DictProxy, ListProxy, SetProxy
 
 
 def assert_patches_work(base, recipe):
@@ -802,8 +803,6 @@ def test_cross_level_modifications():
 # 1. Add the method name to SKIPPED below (if it doesn't need proxying), or
 # 2. Implement it on the proxy class.
 
-from patchdiff.produce import DictProxy, ListProxy, SetProxy
-
 # Methods inherited from object that are not part of the container API
 _OBJECT_INTERNALS = {
     "__class__",
@@ -830,42 +829,43 @@ def _unhandled_methods(proxy_cls, base_cls, skipped):
     return (base_methods - proxy_methods) - set(skipped)
 
 
+# Methods intentionally not implemented on the proxy classes.
+# If a new Python version adds a method to dict/list/set, the test will
+# fail. To fix, either implement the method or add it here.
+_DICT_SKIPPED = {
+    "fromkeys",  # classmethod, not relevant for proxy instances
+    "__class_getitem__",  # typing support (dict[str, int])
+}
+
+_LIST_SKIPPED = {
+    "__class_getitem__",  # typing support (list[int])
+}
+
+_SET_SKIPPED = {
+    "__class_getitem__",  # typing support (set[int])
+}
+
+
 class TestProxyApiCompleteness:
     """Verify proxy classes implement all methods of their base types."""
 
-    # Methods intentionally not implemented on the proxy classes.
-    # If a new Python version adds a method to dict/list/set, the test will
-    # fail. To fix, either implement the method or add it here.
-    DICT_SKIPPED = {
-        "fromkeys",  # classmethod, not relevant for proxy instances
-        "__class_getitem__",  # typing support (dict[str, int])
-    }
-
-    LIST_SKIPPED = {
-        "__class_getitem__",  # typing support (list[int])
-    }
-
-    SET_SKIPPED = {
-        "__class_getitem__",  # typing support (set[int])
-    }
-
     def test_dict_proxy_api_completeness(self):
-        unhandled = _unhandled_methods(DictProxy, dict, self.DICT_SKIPPED)
+        unhandled = _unhandled_methods(DictProxy, dict, _DICT_SKIPPED)
         assert not unhandled, (
             f"DictProxy is missing methods from dict: {sorted(unhandled)}. "
-            f"Either implement them on DictProxy or add to DICT_SKIPPED."
+            f"Either implement them on DictProxy or add to _DICT_SKIPPED."
         )
 
     def test_list_proxy_api_completeness(self):
-        unhandled = _unhandled_methods(ListProxy, list, self.LIST_SKIPPED)
+        unhandled = _unhandled_methods(ListProxy, list, _LIST_SKIPPED)
         assert not unhandled, (
             f"ListProxy is missing methods from list: {sorted(unhandled)}. "
-            f"Either implement them on ListProxy or add to LIST_SKIPPED."
+            f"Either implement them on ListProxy or add to _LIST_SKIPPED."
         )
 
     def test_set_proxy_api_completeness(self):
-        unhandled = _unhandled_methods(SetProxy, set, self.SET_SKIPPED)
+        unhandled = _unhandled_methods(SetProxy, set, _SET_SKIPPED)
         assert not unhandled, (
             f"SetProxy is missing methods from set: {sorted(unhandled)}. "
-            f"Either implement them on SetProxy or add to SET_SKIPPED."
+            f"Either implement them on SetProxy or add to _SET_SKIPPED."
         )

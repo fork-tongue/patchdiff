@@ -1056,11 +1056,11 @@ def test_list_add_operator():
     base = [1, 2]
 
     def recipe(draft):
-        new = draft + [3, 4]
+        new = draft + [3, 4]  # noqa: RUF005
         assert isinstance(new, list)
         assert new == [1, 2, 3, 4]
 
-    result, patches, _reverse = produce(base, recipe)
+    _result, patches, _reverse = produce(base, recipe)
 
     assert patches == []
 
@@ -1074,7 +1074,7 @@ def test_list_mul_operator():
         assert isinstance(new, list)
         assert new == [1, 2, 1, 2, 1, 2]
 
-    result, patches, _reverse = produce(base, recipe)
+    _result, patches, _reverse = produce(base, recipe)
 
     assert patches == []
 
@@ -1088,7 +1088,7 @@ def test_list_rmul_operator():
         assert isinstance(new, list)
         assert new == [1, 2, 1, 2, 1, 2]
 
-    result, patches, _reverse = produce(base, recipe)
+    _result, patches, _reverse = produce(base, recipe)
 
     assert patches == []
 

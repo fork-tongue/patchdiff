@@ -651,7 +651,7 @@ def test_dict_or_operator():
         assert isinstance(merged, dict)
         assert merged == {"a": 1, "b": 2}
 
-    result, patches, _reverse = produce(base, recipe)
+    _result, patches, _reverse = produce(base, recipe)
 
     assert patches == []  # No mutations to draft
 
