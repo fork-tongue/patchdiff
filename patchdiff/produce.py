@@ -234,14 +234,6 @@ class DictProxy:
         self.update(other)
         return self
 
-    def __or__(self, other):
-        """Implement | operator (merge), returns a new dict."""
-        return self._data | other
-
-    def __ror__(self, other):
-        """Implement reverse | operator, returns a new dict."""
-        return other | self._data
-
 
 # Add simple reader methods to DictProxy
 _add_reader_methods(
@@ -261,6 +253,8 @@ _add_reader_methods(
         "__format__",
         "__eq__",
         "__ne__",
+        "__or__",
+        "__ror__",
     ],
 )
 # Skipped dict methods:
@@ -527,18 +521,6 @@ class ListProxy:
                 self.extend(original)
         return self
 
-    def __add__(self, other):
-        """Implement + operator, returns a new list."""
-        return self._data + other
-
-    def __mul__(self, n):
-        """Implement * operator, returns a new list."""
-        return self._data * n
-
-    def __rmul__(self, n):
-        """Implement reverse * operator, returns a new list."""
-        return self._data * n
-
 
 # Add simple reader methods to ListProxy
 _add_reader_methods(
@@ -560,6 +542,9 @@ _add_reader_methods(
         "__le__",
         "__gt__",
         "__ge__",
+        "__add__",
+        "__mul__",
+        "__rmul__",
     ],
 )
 # Skipped list methods:
@@ -674,37 +659,6 @@ class SetProxy:
             else:
                 self.add(value)
 
-    def __or__(self, other):
-        """Implement | operator (union), returns a new set."""
-        return self._data | other
-
-    def __ror__(self, other):
-        """Implement reverse | operator, returns a new set."""
-        return other | self._data
-
-    def __and__(self, other):
-        """Implement & operator (intersection), returns a new set."""
-        return self._data & other
-
-    def __rand__(self, other):
-        """Implement reverse & operator, returns a new set."""
-        return other & self._data
-
-    def __sub__(self, other):
-        """Implement - operator (difference), returns a new set."""
-        return self._data - other
-
-    def __rsub__(self, other):
-        """Implement reverse - operator, returns a new set."""
-        return other - self._data
-
-    def __xor__(self, other):
-        """Implement ^ operator (symmetric difference), returns a new set."""
-        return self._data ^ other
-
-    def __rxor__(self, other):
-        """Implement reverse ^ operator, returns a new set."""
-        return other ^ self._data
 
 
 # Add simple reader methods to SetProxy
@@ -731,6 +685,14 @@ _add_reader_methods(
         "__lt__",
         "__ge__",
         "__gt__",
+        "__or__",
+        "__ror__",
+        "__and__",
+        "__rand__",
+        "__sub__",
+        "__rsub__",
+        "__xor__",
+        "__rxor__",
     ],
 )
 # Skipped set methods:
