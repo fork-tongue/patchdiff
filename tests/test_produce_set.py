@@ -535,3 +535,148 @@ def test_set_issuperset_self():
     result, _patches, _reverse = produce(base, recipe)
 
     assert result == base
+
+
+def test_set_difference_update_method():
+    """Test difference_update() method on set proxy."""
+    base = {1, 2, 3, 4}
+
+    def recipe(draft):
+        draft.difference_update({2, 4})
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {1, 3}
+    assert len(patches) == 2
+
+
+def test_set_intersection_update_method():
+    """Test intersection_update() method on set proxy."""
+    base = {1, 2, 3, 4}
+
+    def recipe(draft):
+        draft.intersection_update({2, 3, 5})
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {2, 3}
+    assert len(patches) == 2  # Removed 1 and 4
+
+
+def test_set_symmetric_difference_update_method():
+    """Test symmetric_difference_update() method on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        draft.symmetric_difference_update({2, 3, 4})
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {1, 4}
+    assert len(patches) == 3  # Removed 2, 3, added 4
+
+
+def test_set_or_operator():
+    """Test | operator (union) returns new set, not a proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        new = draft | {3, 4, 5}
+        assert isinstance(new, set)
+        assert new == {1, 2, 3, 4, 5}
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert patches == []
+
+
+def test_set_and_operator():
+    """Test & operator (intersection) returns new set."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        new = draft & {2, 3, 4}
+        assert isinstance(new, set)
+        assert new == {2, 3}
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert patches == []
+
+
+def test_set_sub_operator():
+    """Test - operator (difference) returns new set."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        new = draft - {2, 4}
+        assert isinstance(new, set)
+        assert new == {1, 3}
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert patches == []
+
+
+def test_set_xor_operator():
+    """Test ^ operator (symmetric difference) returns new set."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        new = draft ^ {2, 3, 4}
+        assert isinstance(new, set)
+        assert new == {1, 4}
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert patches == []
+
+
+def test_set_eq():
+    """Test __eq__ on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        assert draft == {1, 2, 3}
+        assert not (draft == {1, 2})
+
+    produce(base, recipe)
+
+
+def test_set_ne():
+    """Test __ne__ on set proxy."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        assert draft != {1, 2}
+        assert not (draft != {1, 2, 3})
+
+    produce(base, recipe)
+
+
+def test_set_bool():
+    """Test __bool__ on set proxy."""
+
+    def recipe_empty(draft):
+        assert not draft
+
+    def recipe_full(draft):
+        assert draft
+
+    produce(set(), recipe_empty)
+    produce({1}, recipe_full)
+
+
+def test_set_le_lt_ge_gt():
+    """Test comparison operators on set proxy (subset/superset)."""
+    base = {1, 2, 3}
+
+    def recipe(draft):
+        assert draft <= {1, 2, 3, 4}  # subset
+        assert draft <= {1, 2, 3}  # equal is also <=
+        assert draft < {1, 2, 3, 4}  # proper subset
+        assert not (draft < {1, 2, 3})  # not proper subset of equal
+        assert draft >= {1, 2}  # superset
+        assert draft > {1, 2}  # proper superset
+
+    produce(base, recipe)

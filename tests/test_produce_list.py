@@ -982,3 +982,147 @@ def test_list_count_empty_list():
     result, _patches, _reverse = produce(base, recipe)
 
     assert result == []
+
+
+def test_list_iter_returns_proxied_nested():
+    """Test that __iter__ returns proxied nested objects."""
+    base = [{"x": 1}, {"x": 2}]
+
+    def recipe(draft):
+        for item in draft:
+            item["x"] = 99
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [{"x": 99}, {"x": 99}]
+    assert len(patches) == 2
+
+
+def test_list_reversed_returns_proxied_nested():
+    """Test that __reversed__ returns proxied nested objects."""
+    base = [{"x": 1}, {"x": 2}]
+
+    def recipe(draft):
+        for item in reversed(draft):
+            item["x"] = 99
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [{"x": 99}, {"x": 99}]
+    assert len(patches) == 2
+
+
+def test_list_iadd_operator():
+    """Test += operator (in-place add, like extend) on list proxy."""
+    base = [1, 2]
+
+    def recipe(draft):
+        draft += [3, 4]
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1, 2, 3, 4]
+    assert len(patches) == 2
+
+
+def test_list_imul_operator():
+    """Test *= operator (in-place repeat) on list proxy."""
+    base = [1, 2]
+
+    def recipe(draft):
+        draft *= 3
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == [1, 2, 1, 2, 1, 2]
+    assert len(patches) == 4  # 4 new elements added
+
+
+def test_list_add_operator():
+    """Test + operator returns new list, not a proxy."""
+    base = [1, 2]
+
+    def recipe(draft):
+        new = draft + [3, 4]
+        assert isinstance(new, list)
+        assert new == [1, 2, 3, 4]
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert patches == []
+
+
+def test_list_mul_operator():
+    """Test * operator returns new list, not a proxy."""
+    base = [1, 2]
+
+    def recipe(draft):
+        new = draft * 3
+        assert isinstance(new, list)
+        assert new == [1, 2, 1, 2, 1, 2]
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert patches == []
+
+
+def test_list_rmul_operator():
+    """Test reverse * operator (int * list) returns new list."""
+    base = [1, 2]
+
+    def recipe(draft):
+        new = 3 * draft
+        assert isinstance(new, list)
+        assert new == [1, 2, 1, 2, 1, 2]
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert patches == []
+
+
+def test_list_eq():
+    """Test __eq__ on list proxy."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        assert draft == [1, 2, 3]
+        assert not (draft == [1, 2])
+
+    produce(base, recipe)
+
+
+def test_list_ne():
+    """Test __ne__ on list proxy."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        assert draft != [1, 2]
+        assert not (draft != [1, 2, 3])
+
+    produce(base, recipe)
+
+
+def test_list_bool():
+    """Test __bool__ on list proxy."""
+
+    def recipe_empty(draft):
+        assert not draft
+
+    def recipe_full(draft):
+        assert draft
+
+    produce([], recipe_empty)
+    produce([1], recipe_full)
+
+
+def test_list_lt_le_gt_ge():
+    """Test comparison operators on list proxy."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        assert draft < [1, 2, 4]
+        assert draft <= [1, 2, 3]
+        assert draft > [1, 2, 2]
+        assert draft >= [1, 2, 3]
+
+    produce(base, recipe)

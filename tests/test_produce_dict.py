@@ -567,6 +567,98 @@ def test_dict_get_none_implicit():
     assert result == {"a": 1}
 
 
+def test_dict_values_returns_proxied_nested():
+    """Test that values() returns proxied nested objects."""
+    base = {"a": {"x": 1}, "b": {"x": 2}}
+
+    def recipe(draft):
+        for v in draft.values():
+            v["x"] = 99
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": {"x": 99}, "b": {"x": 99}}
+    assert len(patches) == 2
+
+
+def test_dict_items_returns_proxied_nested():
+    """Test that items() returns proxied nested objects."""
+    base = {"a": {"x": 1}, "b": {"x": 2}}
+
+    def recipe(draft):
+        for k, v in draft.items():
+            v["x"] = 99
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": {"x": 99}, "b": {"x": 99}}
+    assert len(patches) == 2
+
+
+def test_dict_ior_operator():
+    """Test |= operator (merge update) on dict proxy."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        draft |= {"b": 2, "c": 3}
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1, "b": 2, "c": 3}
+    assert len(patches) == 2
+
+
+def test_dict_or_operator():
+    """Test | operator (merge) on dict proxy returns new dict."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        merged = draft | {"b": 2}
+        assert isinstance(merged, dict)
+        assert merged == {"a": 1, "b": 2}
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert patches == []  # No mutations to draft
+
+
+def test_dict_eq():
+    """Test __eq__ on dict proxy."""
+    base = {"a": 1, "b": 2}
+
+    def recipe(draft):
+        assert draft == {"a": 1, "b": 2}
+        assert not (draft == {"a": 1})
+
+    produce(base, recipe)
+
+
+def test_dict_ne():
+    """Test __ne__ on dict proxy."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        assert draft != {"b": 2}
+        assert not (draft != {"a": 1})
+
+    produce(base, recipe)
+
+
+def test_dict_bool():
+    """Test __bool__ on dict proxy."""
+    base_empty = {}
+    base_full = {"a": 1}
+
+    def recipe_empty(draft):
+        assert not draft
+
+    def recipe_full(draft):
+        assert draft
+
+    produce(base_empty, recipe_empty)
+    produce(base_full, recipe_full)
+
+
 def test_dict_get_none_explicit():
     """Test get() with explicit None default."""
     base = {"a": 1}
