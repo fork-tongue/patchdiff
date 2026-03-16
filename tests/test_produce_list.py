@@ -1038,6 +1038,19 @@ def test_list_imul_operator():
     assert len(patches) == 4  # 4 new elements added
 
 
+def test_list_imul_zero():
+    """Test *= 0 clears the list."""
+    base = [1, 2, 3]
+
+    def recipe(draft):
+        draft *= 0
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == []
+    assert len(patches) == 3  # 3 elements removed
+
+
 def test_list_add_operator():
     """Test + operator returns new list, not a proxy."""
     base = [1, 2]

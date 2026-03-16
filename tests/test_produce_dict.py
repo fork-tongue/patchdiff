@@ -102,6 +102,23 @@ def test_dict_pop():
     assert patches[0]["op"] == "remove"
 
 
+def test_dict_pop_invalidates_proxy_cache():
+    """Test that pop() invalidates the proxy cache for nested structures."""
+    base = {"nested": {"a": 1}, "other": 2}
+
+    def recipe(draft):
+        # Access nested to populate the proxy cache
+        _ = draft["nested"]["a"]
+        # Pop the key that has a cached proxy
+        draft.pop("nested")
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"other": 2}
+    assert len(patches) == 1
+    assert patches[0]["op"] == "remove"
+
+
 def test_dict_update():
     """Test dict.update() operation."""
     base = {"a": 1}
@@ -277,6 +294,23 @@ def test_dict_popitem():
     result, patches, _reverse = produce(base, recipe)
 
     assert len(result) == 1
+    assert len(patches) == 1
+    assert patches[0]["op"] == "remove"
+
+
+def test_dict_popitem_invalidates_proxy_cache():
+    """Test that popitem() invalidates the proxy cache for nested structures."""
+    base = {"a": {"x": 1}}
+
+    def recipe(draft):
+        # Access nested to populate the proxy cache
+        _ = draft["a"]["x"]
+        # popitem removes the only key which has a cached proxy
+        draft.popitem()
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {}
     assert len(patches) == 1
     assert patches[0]["op"] == "remove"
 
