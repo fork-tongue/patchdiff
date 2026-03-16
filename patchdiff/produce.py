@@ -240,15 +240,6 @@ class DictProxy:
         """Implement reverse | operator, returns a new dict."""
         return other | self._data
 
-    def __eq__(self, other):
-        return self._data == other
-
-    def __ne__(self, other):
-        return self._data != other
-
-    def __bool__(self):
-        return bool(self._data)
-
 
 # Add simple reader methods to DictProxy
 _add_reader_methods(
@@ -266,6 +257,8 @@ _add_reader_methods(
         "copy",
         "__str__",
         "__format__",
+        "__eq__",
+        "__ne__",
     ],
 )
 # Skipped dict methods:
@@ -547,27 +540,6 @@ class ListProxy:
         """Implement reverse * operator, returns a new list."""
         return self._data * n
 
-    def __eq__(self, other):
-        return self._data == other
-
-    def __ne__(self, other):
-        return self._data != other
-
-    def __lt__(self, other):
-        return self._data < other
-
-    def __le__(self, other):
-        return self._data <= other
-
-    def __gt__(self, other):
-        return self._data > other
-
-    def __ge__(self, other):
-        return self._data >= other
-
-    def __bool__(self):
-        return bool(self._data)
-
 
 # Add simple reader methods to ListProxy
 _add_reader_methods(
@@ -583,6 +555,12 @@ _add_reader_methods(
         "copy",
         "__str__",
         "__format__",
+        "__eq__",
+        "__ne__",
+        "__lt__",
+        "__le__",
+        "__gt__",
+        "__ge__",
     ],
 )
 # Skipped list methods:
@@ -728,27 +706,6 @@ class SetProxy:
         """Implement reverse ^ operator, returns a new set."""
         return other ^ self._data
 
-    def __eq__(self, other):
-        return self._data == other
-
-    def __ne__(self, other):
-        return self._data != other
-
-    def __le__(self, other):
-        return self._data <= other
-
-    def __lt__(self, other):
-        return self._data < other
-
-    def __ge__(self, other):
-        return self._data >= other
-
-    def __gt__(self, other):
-        return self._data > other
-
-    def __bool__(self):
-        return bool(self._data)
-
 
 # Add simple reader methods to SetProxy
 _add_reader_methods(
@@ -768,6 +725,12 @@ _add_reader_methods(
         "copy",
         "__str__",
         "__format__",
+        "__eq__",
+        "__ne__",
+        "__le__",
+        "__lt__",
+        "__ge__",
+        "__gt__",
     ],
 )
 # Skipped set methods:
