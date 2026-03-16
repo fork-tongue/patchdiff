@@ -98,6 +98,8 @@ class PatchRecorder:
 class DictProxy:
     """Proxy for dict objects that tracks mutations and generates patches."""
 
+    __hash__ = None  # dicts are unhashable
+
     def __init__(self, data: Dict, recorder: PatchRecorder, path: Pointer):
         self._data = data
         self._recorder = recorder
@@ -264,12 +266,13 @@ _add_reader_methods(
 # Skipped dict methods:
 # - fromkeys: classmethod, not relevant for proxy instances
 # - __class_getitem__: typing support (dict[str, int]), not relevant for instances
-# - __hash__: dicts are unhashable, same for proxy
 # - __lt__, __le__, __gt__, __ge__: dicts don't support ordering comparisons
 
 
 class ListProxy:
     """Proxy for list objects that tracks mutations and generates patches."""
+
+    __hash__ = None  # lists are unhashable
 
     def __init__(self, data: List, recorder: PatchRecorder, path: Pointer):
         self._data = data
@@ -528,10 +531,6 @@ class ListProxy:
         """Implement + operator, returns a new list."""
         return self._data + other
 
-    def __radd__(self, other):
-        """Implement reverse + operator, returns a new list."""
-        return other + self._data
-
     def __mul__(self, n):
         """Implement * operator, returns a new list."""
         return self._data * n
@@ -565,11 +564,12 @@ _add_reader_methods(
 )
 # Skipped list methods:
 # - __class_getitem__: typing support (list[int]), not relevant for instances
-# - __hash__: lists are unhashable, same for proxy
 
 
 class SetProxy:
     """Proxy for set objects that tracks mutations and generates patches."""
+
+    __hash__ = None  # sets are unhashable
 
     def __init__(self, data: Set, recorder: PatchRecorder, path: Pointer):
         self._data = data
@@ -735,7 +735,6 @@ _add_reader_methods(
 )
 # Skipped set methods:
 # - __class_getitem__: typing support (set[int]), not relevant for instances
-# - __hash__: sets are unhashable, same for proxy
 
 
 def produce(
