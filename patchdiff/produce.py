@@ -660,7 +660,6 @@ class SetProxy:
                 self.add(value)
 
 
-
 # Add simple reader methods to SetProxy
 _add_reader_methods(
     SetProxy,
