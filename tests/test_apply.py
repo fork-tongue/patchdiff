@@ -34,6 +34,24 @@ def test_apply_list():
     assert a == d
 
 
+def test_apply_empty():
+    a = {
+        "a": [5, 7, 9, {"a", "b", "c"}],
+        "b": 6,
+    }
+    b = {
+        "a": [5, 7, 9, {"a", "b", "c"}],
+        "b": 6,
+    }
+    ops, rops = diff(a, b)
+
+    c = apply(a, ops)
+    assert c == b
+
+    d = apply(b, rops)
+    assert a == d
+
+
 def test_add_remove_list():
     a = []
     b = [1]
