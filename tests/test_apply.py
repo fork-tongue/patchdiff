@@ -43,7 +43,12 @@ def test_apply_empty():
         "a": [5, 7, 9, {"a", "b", "c"}],
         "b": 6,
     }
+    assert a == b
+
     ops, rops = diff(a, b)
+
+    assert not ops
+    assert not rops
 
     c = apply(a, ops)
     assert c == b
