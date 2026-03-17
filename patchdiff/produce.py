@@ -98,6 +98,7 @@ class PatchRecorder:
 class DictProxy:
     """Proxy for dict objects that tracks mutations and generates patches."""
 
+    __slots__ = ("_data", "_path", "_proxies", "_recorder")
     __hash__ = None  # dicts are unhashable
 
     def __init__(self, data: Dict, recorder: PatchRecorder, path: Pointer):
@@ -266,6 +267,7 @@ _add_reader_methods(
 class ListProxy:
     """Proxy for list objects that tracks mutations and generates patches."""
 
+    __slots__ = ("_data", "_path", "_proxies", "_recorder")
     __hash__ = None  # lists are unhashable
 
     def __init__(self, data: List, recorder: PatchRecorder, path: Pointer):
@@ -554,6 +556,7 @@ _add_reader_methods(
 class SetProxy:
     """Proxy for set objects that tracks mutations and generates patches."""
 
+    __slots__ = ("_data", "_path", "_recorder")
     __hash__ = None  # sets are unhashable
 
     def __init__(self, data: Set, recorder: PatchRecorder, path: Pointer):
