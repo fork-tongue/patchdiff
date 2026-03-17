@@ -98,6 +98,9 @@ class PatchRecorder:
 class DictProxy:
     """Proxy for dict objects that tracks mutations and generates patches."""
 
+    __slots__ = ("_data", "_path", "_proxies", "_recorder")
+    __hash__ = None  # dicts are unhashable
+
     def __init__(self, data: Dict, recorder: PatchRecorder, path: Pointer):
         self._data = data
         self._recorder = recorder
@@ -217,6 +220,21 @@ class DictProxy:
             del self._proxies[key]
         return key, value
 
+    def values(self):
+        """Return proxied values so nested mutations are tracked."""
+        for key in self._data:
+            yield self._wrap(key, self._data[key])
+
+    def items(self):
+        """Return (key, proxied_value) pairs so nested mutations are tracked."""
+        for key in self._data:
+            yield key, self._wrap(key, self._data[key])
+
+    def __ior__(self, other):
+        """Implement |= operator (merge update)."""
+        self.update(other)
+        return self
+
 
 # Add simple reader methods to DictProxy
 _add_reader_methods(
@@ -226,17 +244,31 @@ _add_reader_methods(
         "__contains__",
         "__repr__",
         "__iter__",
+        # __reversed__ returns keys (not values), so pass-through is fine
         "__reversed__",
         "keys",
-        "values",
-        "items",
+        # values() and items() are implemented as custom methods above
+        # to return proxied nested objects
         "copy",
+        "__str__",
+        "__format__",
+        "__eq__",
+        "__ne__",
+        "__or__",
+        "__ror__",
     ],
 )
+# Skipped dict methods:
+# - fromkeys: classmethod, not relevant for proxy instances
+# - __class_getitem__: typing support (dict[str, int]), not relevant for instances
+# - __lt__, __le__, __gt__, __ge__: dicts don't support ordering comparisons
 
 
 class ListProxy:
     """Proxy for list objects that tracks mutations and generates patches."""
+
+    __slots__ = ("_data", "_path", "_proxies", "_recorder")
+    __hash__ = None  # lists are unhashable
 
     def __init__(self, data: List, recorder: PatchRecorder, path: Pointer):
         self._data = data
@@ -466,6 +498,31 @@ class ListProxy:
         # Invalidate all proxy caches as positions changed
         self._proxies.clear()
 
+    def __iter__(self):
+        """Iterate over list elements, wrapping nested structures in proxies."""
+        for i in range(len(self._data)):
+            yield self._wrap(i, self._data[i])
+
+    def __reversed__(self):
+        """Iterate in reverse, wrapping nested structures in proxies."""
+        for i in range(len(self._data) - 1, -1, -1):
+            yield self._wrap(i, self._data[i])
+
+    def __iadd__(self, other):
+        """Implement += operator (in-place extend)."""
+        self.extend(other)
+        return self
+
+    def __imul__(self, n):
+        """Implement *= operator (in-place repeat)."""
+        if n <= 0:
+            self.clear()
+        elif n > 1:
+            original = list(self._data)
+            for _ in range(n - 1):
+                self.extend(original)
+        return self
+
 
 # Add simple reader methods to ListProxy
 _add_reader_methods(
@@ -474,17 +531,33 @@ _add_reader_methods(
         "__len__",
         "__contains__",
         "__repr__",
-        "__iter__",
-        "__reversed__",
+        # __iter__ and __reversed__ are implemented as custom methods above
+        # to return proxied nested objects
         "index",
         "count",
         "copy",
+        "__str__",
+        "__format__",
+        "__eq__",
+        "__ne__",
+        "__lt__",
+        "__le__",
+        "__gt__",
+        "__ge__",
+        "__add__",
+        "__mul__",
+        "__rmul__",
     ],
 )
+# Skipped list methods:
+# - __class_getitem__: typing support (list[int]), not relevant for instances
 
 
 class SetProxy:
     """Proxy for set objects that tracks mutations and generates patches."""
+
+    __slots__ = ("_data", "_path", "_recorder")
+    __hash__ = None  # sets are unhashable
 
     def __init__(self, data: Set, recorder: PatchRecorder, path: Pointer):
         self._data = data
@@ -564,6 +637,31 @@ class SetProxy:
                 self.add(value)
         return self
 
+    def difference_update(self, *others):
+        """Remove all elements found in others."""
+        for other in others:
+            for value in other:
+                if value in self._data:
+                    self.remove(value)
+
+    def intersection_update(self, *others):
+        """Keep only elements found in all others."""
+        # Compute the intersection first, then remove what's not in it
+        keep = self._data.copy()
+        for other in others:
+            keep &= set(other)
+        values_to_remove = [v for v in self._data if v not in keep]
+        for value in values_to_remove:
+            self.remove(value)
+
+    def symmetric_difference_update(self, other):
+        """Update with symmetric difference."""
+        for value in other:
+            if value in self._data:
+                self.remove(value)
+            else:
+                self.add(value)
+
 
 # Add simple reader methods to SetProxy
 _add_reader_methods(
@@ -581,8 +679,26 @@ _add_reader_methods(
         "issubset",
         "issuperset",
         "copy",
+        "__str__",
+        "__format__",
+        "__eq__",
+        "__ne__",
+        "__le__",
+        "__lt__",
+        "__ge__",
+        "__gt__",
+        "__or__",
+        "__ror__",
+        "__and__",
+        "__rand__",
+        "__sub__",
+        "__rsub__",
+        "__xor__",
+        "__rxor__",
     ],
 )
+# Skipped set methods:
+# - __class_getitem__: typing support (set[int]), not relevant for instances
 
 
 def produce(

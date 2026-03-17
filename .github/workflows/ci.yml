@@ -47,7 +47,7 @@ jobs:
       - name: Format
         run: uv run ruff format --check
       - name: Test
-        run: uv run pytest -v --cov=patchdiff --cov-report=term-missing
+        run: uv run pytest -v --cov=patchdiff --cov-report=term-missing --cov-fail-under=100
 
   build:
     name: Build and test wheel
