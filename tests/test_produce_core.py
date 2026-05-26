@@ -869,3 +869,51 @@ class TestProxyApiCompleteness:
             f"SetProxy is missing methods from set: {sorted(unhandled)}. "
             f"Either implement them on SetProxy or add to _SET_SKIPPED."
         )
+
+
+class TestPatchSnapshotting:
+    """Patches must snapshot mutable values so later proxy mutations don't
+    silently rewrite earlier patches' stored values."""
+
+    def test_dict_value_mutated_after_assignment_is_snapshotted(self):
+        """Recipe assigns a list, then mutates it. Replay must match result."""
+
+        def recipe(draft):
+            draft["a"] = [1, 2, 3]
+            draft["a"].append(4)
+
+        result, patches, reverse = produce({}, recipe)
+        assert result == {"a": [1, 2, 3, 4]}
+        assert apply({}, patches) == result
+        assert apply(result, reverse) == {}
+
+    def test_list_element_mutated_after_append_is_snapshotted(self):
+        """Recipe appends a dict, then mutates it. Replay must match result."""
+
+        def recipe(draft):
+            draft.append({"x": 1})
+            draft[-1]["x"] = 2
+
+        result, patches, reverse = produce([], recipe)
+        assert result == [{"x": 2}]
+        assert apply([], patches) == result
+        assert apply(result, reverse) == []
+
+    def test_nested_dict_in_list_in_dict_mutation_is_snapshotted(self):
+        """Arbitrarily nested mutation after the parent was added."""
+
+        def recipe(draft):
+            draft["users"] = [{"name": "Alice", "tags": ["py"]}]
+            draft["users"][0]["tags"].append("js")
+            draft["users"].append({"name": "Bob", "tags": ["go"]})
+            draft["users"][1]["tags"][0] = "rust"
+
+        result, patches, reverse = produce({}, recipe)
+        assert result == {
+            "users": [
+                {"name": "Alice", "tags": ["py", "js"]},
+                {"name": "Bob", "tags": ["rust"]},
+            ]
+        }
+        assert apply({}, patches) == result
+        assert apply(result, reverse) == {}
