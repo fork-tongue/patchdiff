@@ -1,4 +1,7 @@
+import pytest
+
 from patchdiff import apply, diff
+from patchdiff.pointer import Pointer
 
 
 def test_apply():
@@ -132,3 +135,21 @@ def test_add_remove_list_extended_inverse_leaving_end():
 
     d = apply(b, rops)
     assert a == d
+
+
+def test_apply_raises_on_missing_dict_key():
+    ops = [{"op": "replace", "path": Pointer(["missing", "key"]), "value": 99}]
+    with pytest.raises(KeyError):
+        apply({"present": 1}, ops)
+
+
+def test_apply_raises_on_out_of_range_list_index():
+    ops = [{"op": "replace", "path": Pointer([10, "x"]), "value": 99}]
+    with pytest.raises(IndexError):
+        apply([1, 2, 3], ops)
+
+
+def test_apply_raises_when_traversing_into_primitive():
+    ops = [{"op": "replace", "path": Pointer(["a", "b"]), "value": 99}]
+    with pytest.raises(TypeError):
+        apply({"a": 5}, ops)
