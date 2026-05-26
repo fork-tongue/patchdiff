@@ -45,13 +45,27 @@ class Pointer:
         parent = None
         cursor = obj
         if tokens := self.tokens:
+            # Walk to the parent strictly: any failure here is a path that
+            # doesn't exist in the target, and silently landing on a partial
+            # parent would let iapply write to the wrong place.
+            for key in tokens[:-1]:
+                parent = cursor
+                cursor = parent[key]
+            # The leaf may legitimately not exist (add ops on dicts, list
+            # "-" append) so we tolerate lookup failures there — but only
+            # when the parent is itself a container we can write into.
+            parent = cursor
+            key = tokens[-1]
             try:
-                for key in tokens:
-                    parent = cursor
-                    cursor = parent[key]
-            except (KeyError, TypeError):
-                # KeyError for dicts, TypeError for sets and lists
-                pass
+                cursor = parent[key]
+            except (KeyError, IndexError, TypeError):
+                if not (
+                    hasattr(parent, "keys")
+                    or hasattr(parent, "append")
+                    or hasattr(parent, "add")
+                ):
+                    raise
+                cursor = None
         return parent, key, cursor
 
     def append(self, token: Hashable) -> "Pointer":

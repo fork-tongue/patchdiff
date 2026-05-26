@@ -1,3 +1,5 @@
+import pytest
+
 from patchdiff.pointer import Pointer, escape, unescape
 
 
@@ -72,3 +74,18 @@ def test_escape_unescape_roundtrip():
     for token in tokens:
         assert escape(token) == expected[token]
         assert unescape(escape(token)) == token
+
+
+def test_pointer_evaluate_raises_on_missing_dict_key():
+    with pytest.raises(KeyError):
+        Pointer(["missing", "key"]).evaluate({"present": 1})
+
+
+def test_pointer_evaluate_raises_on_out_of_range_list_index():
+    with pytest.raises(IndexError):
+        Pointer([10, "x"]).evaluate([1, 2, 3])
+
+
+def test_pointer_evaluate_raises_when_traversing_into_primitive():
+    with pytest.raises(TypeError):
+        Pointer(["a", "b"]).evaluate({"a": 5})

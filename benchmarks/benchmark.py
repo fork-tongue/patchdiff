@@ -149,6 +149,15 @@ def test_dict_diff_nested(benchmark):
     benchmark(diff, a, b)
 
 
+@pytest.mark.benchmark(group="dict-diff")
+@pytest.mark.parametrize("n", [500, 1000, 2000])
+def test_dict_diff_large_common(benchmark, n):
+    """Benchmark: dicts where every key is common and every value changes."""
+    a = {f"k{i}": {"v": i} for i in range(n)}
+    b = {f"k{i}": {"v": i + 1} for i in range(n)}
+    benchmark(diff, a, b)
+
+
 # ========================================
 # Set Diff Benchmarks
 # ========================================

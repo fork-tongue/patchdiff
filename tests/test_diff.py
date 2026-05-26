@@ -1,4 +1,6 @@
-from patchdiff import diff
+import random
+
+from patchdiff import apply, diff
 from patchdiff.pointer import Pointer
 
 
@@ -168,3 +170,58 @@ def test_mixed():
         {"op": "add", "path": Pointer(["a", 3, "-"]), "value": "a"},
         {"op": "remove", "path": Pointer(["c"])},
     ]
+
+
+def _random_dict(rng, n_keys, value_pool):
+    return {f"k{i}": rng.choice(value_pool) for i in range(n_keys)}
+
+
+def _mutate_dict(rng, base, value_pool):
+    result = dict(base)
+    keys = list(result.keys())
+    # Replace
+    for key in rng.sample(keys, k=max(1, len(keys) // 3)):
+        result[key] = rng.choice(value_pool)
+    # Remove
+    for key in rng.sample(keys, k=max(1, len(keys) // 4)):
+        result.pop(key, None)
+    # Add
+    for i in range(max(1, len(keys) // 4)):
+        result[f"new_{i}_{rng.randint(0, 10_000)}"] = rng.choice(value_pool)
+    return result
+
+
+def test_dict_diff_roundtrip_property():
+    rng = random.Random(20260526)
+    value_pool = [
+        0,
+        1,
+        "x",
+        "y",
+        (1, 2),
+        {"nested": 1},
+        [1, 2, 3],
+        {"a", "b"},
+    ]
+    cases = 25
+    for _ in range(cases):
+        n_keys = rng.randint(0, 30)
+        a = _random_dict(rng, n_keys, value_pool)
+        b = _mutate_dict(rng, a, value_pool) if a else _random_dict(rng, 5, value_pool)
+        ops, rops = diff(a, b)
+        assert apply(a, ops) == b
+        assert apply(b, rops) == a
+
+
+def test_set_diff_roundtrip_property():
+    rng = random.Random(20260527)
+    universe = list(range(50)) + [f"s{i}" for i in range(50)]
+    cases = 25
+    for _ in range(cases):
+        size_a = rng.randint(0, 30)
+        size_b = rng.randint(0, 30)
+        a = set(rng.sample(universe, k=size_a))
+        b = set(rng.sample(universe, k=size_b))
+        ops, rops = diff(a, b)
+        assert apply(a, ops) == b
+        assert apply(b, rops) == a
