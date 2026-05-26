@@ -1,4 +1,14 @@
-from patchdiff import diff, to_json
+from patchdiff import apply, diff, to_json
+
+
+def test_to_json_does_not_mutate_ops():
+    a = {"x": [1, 2, 3]}
+    b = {"x": [1, 9, 3]}
+    ops, _ = diff(a, b)
+
+    to_json(ops)
+
+    assert apply(a, ops) == b
 
 
 def test_to_json():

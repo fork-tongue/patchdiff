@@ -156,44 +156,59 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
 
 
 def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> Tuple[List, List]:
-    ops, rops = [], []
+    ops: List = []
+    input_only_rops: List = []
+    output_only_rops: List = []
+    common_rops_chunks: List[List] = []
+
     input_keys = set(input.keys()) if input else set()
     output_keys = set(output.keys()) if output else set()
-    if input_only := input_keys - output_keys:
-        for key in input_only:
-            key_ptr = ptr.append(key)
-            ops.append({"op": "remove", "path": key_ptr})
-            rops.insert(0, {"op": "add", "path": key_ptr, "value": input[key]})
-    if output_only := output_keys - input_keys:
-        for key in output_only:
-            key_ptr = ptr.append(key)
-            ops.append(
-                {
-                    "op": "add",
-                    "path": key_ptr,
-                    "value": output[key],
-                }
-            )
-            rops.insert(0, {"op": "remove", "path": key_ptr})
-    if common := input_keys & output_keys:
-        for key in common:
-            key_ops, key_rops = diff(input[key], output[key], ptr.append(key))
-            ops.extend(key_ops)
-            key_rops.extend(rops)
-            rops = key_rops
+
+    for key in input_keys - output_keys:
+        key_ptr = ptr.append(key)
+        ops.append({"op": "remove", "path": key_ptr})
+        input_only_rops.append({"op": "add", "path": key_ptr, "value": input[key]})
+    input_only_rops.reverse()
+
+    for key in output_keys - input_keys:
+        key_ptr = ptr.append(key)
+        ops.append({"op": "add", "path": key_ptr, "value": output[key]})
+        output_only_rops.append({"op": "remove", "path": key_ptr})
+    output_only_rops.reverse()
+
+    for key in input_keys & output_keys:
+        key_ops, key_rops = diff(input[key], output[key], ptr.append(key))
+        ops.extend(key_ops)
+        if key_rops:
+            common_rops_chunks.append(key_rops)
+
+    # Match the historical insert(0,…) + key_rops.extend(rops) layering:
+    # later common chunks went in front of earlier ones, and the input/output
+    # singletons sat behind them in reverse iteration order.
+    rops: List = []
+    for chunk in reversed(common_rops_chunks):
+        rops.extend(chunk)
+    rops.extend(output_only_rops)
+    rops.extend(input_only_rops)
     return ops, rops
 
 
 def diff_sets(input: Set, output: Set, ptr: Pointer) -> Tuple[List, List]:
-    ops, rops = [], []
-    if input_only := input - output:
-        for value in input_only:
-            ops.append({"op": "remove", "path": ptr.append(value)})
-            rops.insert(0, {"op": "add", "path": ptr.append("-"), "value": value})
-    if output_only := output - input:
-        for value in output_only:
-            ops.append({"op": "add", "path": ptr.append("-"), "value": value})
-            rops.insert(0, {"op": "remove", "path": ptr.append(value)})
+    ops: List = []
+    input_only_rops: List = []
+    output_only_rops: List = []
+
+    for value in input - output:
+        ops.append({"op": "remove", "path": ptr.append(value)})
+        input_only_rops.append({"op": "add", "path": ptr.append("-"), "value": value})
+    input_only_rops.reverse()
+
+    for value in output - input:
+        ops.append({"op": "add", "path": ptr.append("-"), "value": value})
+        output_only_rops.append({"op": "remove", "path": ptr.append(value)})
+    output_only_rops.reverse()
+
+    rops = output_only_rops + input_only_rops
     return ops, rops
 
 
