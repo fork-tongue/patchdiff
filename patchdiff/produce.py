@@ -7,14 +7,10 @@ This approach is inspired by Immer's proxy-based implementation.
 
 from __future__ import annotations
 
-import copy
+from copy import deepcopy
 from typing import Any, Callable, Dict, List, Set, Tuple, Union
 
 from .pointer import Pointer
-
-# Local alias to avoid the `copy` global + `.deepcopy` attribute lookup on
-# every PatchRecorder call.
-_deepcopy = copy.deepcopy
 
 # Optional observ integration
 try:
@@ -61,7 +57,7 @@ class PatchRecorder:
                          If not provided, uses the same path. This is needed
                          for sets where add uses "/-" but remove needs "/value".
         """
-        self.patches.append({"op": "add", "path": path, "value": _deepcopy(value)})
+        self.patches.append({"op": "add", "path": path, "value": deepcopy(value)})
         self.reverse_patches.insert(
             0, {"op": "remove", "path": reverse_path if reverse_path else path}
         )
@@ -85,7 +81,7 @@ class PatchRecorder:
             {
                 "op": "add",
                 "path": reverse_path if reverse_path else path,
-                "value": _deepcopy(old_value),
+                "value": deepcopy(old_value),
             },
         )
 
@@ -94,10 +90,10 @@ class PatchRecorder:
         if old_value == new_value:
             return  # Skip no-op replacements
         self.patches.append(
-            {"op": "replace", "path": path, "value": _deepcopy(new_value)}
+            {"op": "replace", "path": path, "value": deepcopy(new_value)}
         )
         self.reverse_patches.insert(
-            0, {"op": "replace", "path": path, "value": _deepcopy(old_value)}
+            0, {"op": "replace", "path": path, "value": deepcopy(old_value)}
         )
 
 
@@ -758,7 +754,7 @@ def produce(
             base = observ_to_raw(base)
 
         # Create a deep copy of the base object
-        draft = _deepcopy(base)
+        draft = deepcopy(base)
 
     # Create a patch recorder
     recorder = PatchRecorder()
