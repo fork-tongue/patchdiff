@@ -2,7 +2,7 @@
 
 import pytest
 
-from patchdiff import produce
+from patchdiff import apply, produce
 from patchdiff.pointer import Pointer
 
 
@@ -866,6 +866,60 @@ def test_list_reverse_single_element():
 
     assert result == [1]
     assert len(patches) == 0
+
+
+def test_list_reverse_emits_n_patches_for_even_n():
+    """Pin current semantics: reverse emits exactly N replace patches for an
+    N-element list of distinct values when N is even.
+
+    With ``replace`` semantics every position must be written explicitly —
+    dropping the patches for one half of each swap pair would leave those
+    positions untouched on apply. See PR discussion for the trade-off.
+    """
+    base = [1, 2, 3, 4]
+
+    def recipe(draft):
+        draft.reverse()
+
+    _result, patches, _reverse = produce(base, recipe)
+
+    assert len(patches) == 4
+    assert all(p["op"] == "replace" for p in patches)
+    assert {p["path"] for p in patches} == {Pointer([i]) for i in range(4)}
+
+
+def test_list_reverse_emits_n_minus_one_patches_for_odd_n():
+    """Pin current semantics: for odd N the middle element is unchanged and
+    record_replace filters that no-op, so we see N-1 patches."""
+    base = [1, 2, 3, 4, 5]
+
+    def recipe(draft):
+        draft.reverse()
+
+    _result, patches, _reverse = produce(base, recipe)
+
+    assert len(patches) == 4
+    assert {p["path"] for p in patches} == {
+        Pointer([0]),
+        Pointer([1]),
+        Pointer([3]),
+        Pointer([4]),
+    }
+
+
+@pytest.mark.parametrize("n", [0, 1, 2, 3, 4, 5, 10])
+def test_list_reverse_round_trip(n):
+    """Forward and reverse patches both round-trip across a range of sizes."""
+    base = list(range(n))
+
+    def recipe(draft):
+        draft.reverse()
+
+    result, patches, reverse = produce(base, recipe)
+
+    assert result == list(reversed(base))
+    assert apply(base, patches) == result
+    assert apply(result, reverse) == base
 
 
 def test_list_sort_empty():
