@@ -7,10 +7,29 @@ from .types import Diffable
 
 
 def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
-    m, n = len(input), len(output)
+    m_full, n_full = len(input), len(output)
+
+    # Strip common prefix so the DP table only covers the changed region.
+    prefix = 0
+    prefix_limit = min(m_full, n_full)
+    while prefix < prefix_limit and input[prefix] == output[prefix]:
+        prefix += 1
+
+    # Strip common suffix without crossing into the prefix region.
+    suffix = 0
+    while (
+        suffix < (m_full - prefix)
+        and suffix < (n_full - prefix)
+        and input[m_full - 1 - suffix] == output[n_full - 1 - suffix]
+    ):
+        suffix += 1
+
+    sub_input = input[prefix : m_full - suffix]
+    sub_output = output[prefix : n_full - suffix]
+    m, n = len(sub_input), len(sub_output)
 
     # Build DP table bottom-up (iterative approach)
-    # dp[i][j] = cost of transforming input[0:i] to output[0:j]
+    # dp[i][j] = cost of transforming sub_input[0:i] to sub_output[0:j]
     dp = [[0] * (n + 1) for _ in range(m + 1)]
 
     # Initialize base cases
@@ -22,7 +41,7 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
     # Fill DP table
     for i in range(1, m + 1):
         for j in range(1, n + 1):
-            if input[i - 1] == output[j - 1]:
+            if sub_input[i - 1] == sub_output[j - 1]:
                 # Elements match, no operation needed
                 dp[i][j] = dp[i - 1][j - 1]
             else:
@@ -33,42 +52,44 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
                     dp[i - 1][j - 1] + 1,  # Replace
                 )
 
-    # Traceback to extract operations
+    # Traceback to extract operations. Indexes are emitted in sub-list
+    # coordinates and shifted by `prefix` below so they refer to positions
+    # in the original input/output.
     ops = []
     rops = []
     i, j = m, n
 
     while i > 0 or j > 0:
-        if i > 0 and j > 0 and input[i - 1] == output[j - 1]:
+        if i > 0 and j > 0 and sub_input[i - 1] == sub_output[j - 1]:
             # Elements match, no operation
             i -= 1
             j -= 1
         elif i > 0 and (j == 0 or dp[i][j] == dp[i - 1][j] + 1):
             # Remove from input
-            ops.append({"op": "remove", "idx": i - 1})
-            rops.append({"op": "add", "idx": j - 1, "value": input[i - 1]})
+            ops.append({"op": "remove", "idx": i - 1 + prefix})
+            rops.append({"op": "add", "idx": j - 1 + prefix, "value": sub_input[i - 1]})
             i -= 1
         elif j > 0 and (i == 0 or dp[i][j] == dp[i][j - 1] + 1):
             # Add from output
-            ops.append({"op": "add", "idx": i - 1, "value": output[j - 1]})
-            rops.append({"op": "remove", "idx": j - 1})
+            ops.append({"op": "add", "idx": i - 1 + prefix, "value": sub_output[j - 1]})
+            rops.append({"op": "remove", "idx": j - 1 + prefix})
             j -= 1
         else:
             # Replace
             ops.append(
                 {
                     "op": "replace",
-                    "idx": i - 1,
-                    "original": input[i - 1],
-                    "value": output[j - 1],
+                    "idx": i - 1 + prefix,
+                    "original": sub_input[i - 1],
+                    "value": sub_output[j - 1],
                 }
             )
             rops.append(
                 {
                     "op": "replace",
-                    "idx": j - 1,
-                    "original": output[j - 1],
-                    "value": input[i - 1],
+                    "idx": j - 1 + prefix,
+                    "original": sub_output[j - 1],
+                    "value": sub_input[i - 1],
                 }
             )
             i -= 1

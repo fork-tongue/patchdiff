@@ -124,6 +124,28 @@ def test_list_diff_identical(benchmark):
     benchmark(diff, a, b)
 
 
+def _make_localized_change_list(n: int, n_changes: int = 5) -> tuple[list, list]:
+    """Build a pair of lists that share a long common prefix and suffix with
+    a few replacements clustered in the middle. Exercises the prefix/suffix
+    trim path in `diff_lists`."""
+    rng = random.Random(42)
+    a = [rng.randint(0, 100) for _ in range(n)]
+    b = a.copy()
+    mid = n // 2
+    for i in range(n_changes):
+        b[mid + i] = -1
+    return a, b
+
+
+@pytest.mark.benchmark(group="list-diff-similar")
+@pytest.mark.parametrize("size", [1000, 5000, 10000])
+def test_list_diff_similar_localized_changes(benchmark, size):
+    """Benchmark: lists of given size sharing a long common prefix/suffix
+    with a small cluster of localized changes in the middle."""
+    a, b = _make_localized_change_list(size, n_changes=5)
+    benchmark(diff, a, b)
+
+
 # ========================================
 # Dict Diff Benchmarks
 # ========================================
