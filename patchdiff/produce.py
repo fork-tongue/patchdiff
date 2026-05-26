@@ -38,19 +38,6 @@ def _add_reader_methods(proxy_class, method_names):
         setattr(proxy_class, method_name, _make_reader(method_name))
 
 
-def _snapshot(value: Any) -> Any:
-    """Deepcopy mutable containers so later proxy mutations don't bleed into
-    previously-recorded patches. Primitives are returned as-is."""
-    # Duck-type mirror of the checks used in DictProxy/ListProxy._wrap.
-    if (
-        hasattr(value, "keys")
-        or hasattr(value, "append")
-        or (hasattr(value, "add") and hasattr(value, "discard"))
-    ):
-        return copy.deepcopy(value)
-    return value
-
-
 class PatchRecorder:
     """Records patches as mutations happen on proxy objects."""
 
@@ -70,7 +57,7 @@ class PatchRecorder:
                          If not provided, uses the same path. This is needed
                          for sets where add uses "/-" but remove needs "/value".
         """
-        self.patches.append({"op": "add", "path": path, "value": _snapshot(value)})
+        self.patches.append({"op": "add", "path": path, "value": copy.deepcopy(value)})
         self.reverse_patches.insert(
             0, {"op": "remove", "path": reverse_path if reverse_path else path}
         )
@@ -94,7 +81,7 @@ class PatchRecorder:
             {
                 "op": "add",
                 "path": reverse_path if reverse_path else path,
-                "value": _snapshot(old_value),
+                "value": copy.deepcopy(old_value),
             },
         )
 
@@ -103,10 +90,10 @@ class PatchRecorder:
         if old_value == new_value:
             return  # Skip no-op replacements
         self.patches.append(
-            {"op": "replace", "path": path, "value": _snapshot(new_value)}
+            {"op": "replace", "path": path, "value": copy.deepcopy(new_value)}
         )
         self.reverse_patches.insert(
-            0, {"op": "replace", "path": path, "value": _snapshot(old_value)}
+            0, {"op": "replace", "path": path, "value": copy.deepcopy(old_value)}
         )
 
 
