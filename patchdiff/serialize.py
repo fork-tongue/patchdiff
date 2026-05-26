@@ -3,10 +3,7 @@ from typing import List
 
 
 def to_str_paths(ops: List) -> List:
-    str_ops = ops.copy()
-    for op in str_ops:
-        op["path"] = str(op["path"])
-    return str_ops
+    return [{**op, "path": str(op["path"])} for op in ops]
 
 
 def to_json(ops: List, **kwargs) -> str:
