@@ -50,8 +50,7 @@ class Pointer:
         key = ""
         parent = None
         cursor = obj
-        tokens = self.tokens
-        if tokens:
+        if tokens := self.tokens:
             # Walk to the parent strictly: any failure here is a path that
             # doesn't exist in the target, and silently landing on a partial
             # parent would let iapply write to the wrong place.
