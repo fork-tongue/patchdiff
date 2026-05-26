@@ -146,6 +146,42 @@ def test_list_diff_similar_localized_changes(benchmark, size):
     benchmark(diff, a, b)
 
 
+def _nested_dict_item(i: int) -> dict:
+    """Build a dict whose equality is a deep structural compare."""
+    return {
+        "id": i,
+        "name": f"item_{i}",
+        "tags": [f"t{i}_{k}" for k in range(4)],
+        "meta": {"a": i % 7, "b": i % 11, "nested": {"x": [i, i + 1, i + 2]}},
+    }
+
+
+def _make_nested_localized_change_lists(
+    n: int, n_changes: int = 5
+) -> tuple[list, list]:
+    """Pair of lists of nested dicts with a localized cluster of changes
+    in the middle. Items in the common prefix/suffix are equal-by-value
+    but distinct objects, so `==` (not `is`) is the deciding factor."""
+    a = [_nested_dict_item(i) for i in range(n)]
+    b = [_nested_dict_item(i) for i in range(n)]
+    mid = n // 2
+    for k in range(n_changes):
+        b[mid + k] = _nested_dict_item(-1 - k)
+    return a, b
+
+
+@pytest.mark.benchmark(group="list-diff-similar-nested")
+@pytest.mark.parametrize("size", [500, 1000, 2000])
+def test_list_diff_similar_nested_localized_changes(benchmark, size):
+    """Benchmark: lists of nested dicts (deep `==`) sharing a long common
+    prefix/suffix with a small cluster of localized changes in the middle.
+
+    Locks in the regression target from the prefix/suffix trim for items
+    whose equality is a non-trivial structural compare."""
+    a, b = _make_nested_localized_change_lists(size, n_changes=5)
+    benchmark(diff, a, b)
+
+
 # ========================================
 # Dict Diff Benchmarks
 # ========================================
