@@ -1,22 +1,16 @@
 from __future__ import annotations
 
-import re
 from typing import Any, Hashable, Iterable
 
 from .types import Diffable
 
-tilde0_re = re.compile("~0")
-tilde1_re = re.compile("~1")
-tilde_re = re.compile("~")
-slash_re = re.compile("/")
-
 
 def unescape(token: str) -> str:
-    return tilde0_re.sub("~", tilde1_re.sub("/", token))
+    return token.replace("~1", "/").replace("~0", "~")
 
 
 def escape(token: str) -> str:
-    return slash_re.sub("~1", tilde_re.sub("~0", token))
+    return token.replace("~", "~0").replace("/", "~1")
 
 
 class Pointer:

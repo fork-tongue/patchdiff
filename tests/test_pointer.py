@@ -1,4 +1,4 @@
-from patchdiff.pointer import Pointer
+from patchdiff.pointer import Pointer, escape, unescape
 
 
 def test_pointer_get():
@@ -44,3 +44,31 @@ def test_pointer_eq():
 
 def test_pointer_append():
     assert Pointer([1]).append("foo") == Pointer([1, "foo"])
+
+
+def test_escape_unescape_roundtrip():
+    # ~01 is the tricky case: escape must produce ~001, not be confused with
+    # the RFC 6901 escape sequence ~0 followed by '1'.
+    tokens = [
+        "",
+        "plain",
+        "has/slash",
+        "has~tilde",
+        "~/mix",
+        "///",
+        "~~~",
+        "~01",
+    ]
+    expected = {
+        "": "",
+        "plain": "plain",
+        "has/slash": "has~1slash",
+        "has~tilde": "has~0tilde",
+        "~/mix": "~0~1mix",
+        "///": "~1~1~1",
+        "~~~": "~0~0~0",
+        "~01": "~001",
+    }
+    for token in tokens:
+        assert escape(token) == expected[token]
+        assert unescape(escape(token)) == token
