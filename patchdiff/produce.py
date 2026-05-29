@@ -12,12 +12,6 @@ from typing import Any, Callable, Dict, List, Set, Tuple, Union
 
 from .pointer import Pointer
 
-# Optional observ integration
-try:
-    from observ import to_raw as observ_to_raw
-except ImportError:  # pragma: no cover
-    observ_to_raw = None
-
 
 def _add_reader_methods(proxy_class, method_names):
     """Add simple pass-through reader methods to a proxy class.
@@ -748,11 +742,6 @@ def produce(
         # Don't unwrap or copy - use the base object as-is
         draft = base
     else:
-        # Unwrap observ reactive objects to get the underlying data
-        # Use observ's to_raw() function if available
-        if observ_to_raw is not None:
-            base = observ_to_raw(base)
-
         # Create a deep copy of the base object
         draft = deepcopy(base)
 
