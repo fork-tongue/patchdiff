@@ -12,6 +12,71 @@ from typing import Any, Callable, Dict, List, Set, Tuple, Union
 
 from .pointer import Pointer
 
+# Types that are immutable and can never contain a proxy, so they can be
+# stored and snapshotted as-is.
+_SCALAR_TYPES = frozenset({int, float, complex, bool, str, bytes, type(None)})
+
+
+def _snapshot(value: Any) -> Any:
+    """Deep copy a value for storage in a patch, replacing any proxies with
+    plain copies of their underlying data.
+
+    Hand-rolled for the common JSON-like types (faster than copy.deepcopy);
+    unrecognized types fall back to deepcopy, which also unwraps third-party
+    proxies (like observ's) through their __deepcopy__ hooks.
+    """
+    cls = value.__class__
+    if cls in _SCALAR_TYPES:
+        return value
+    if cls is dict:
+        return {key: _snapshot(item) for key, item in value.items()}
+    if cls is list:
+        return [_snapshot(item) for item in value]
+    if cls is DictProxy or cls is ListProxy or cls is SetProxy:
+        return _snapshot(value._data)
+    if cls is set:
+        return {_snapshot(item) for item in value}
+    if cls is frozenset:
+        return frozenset(_snapshot(item) for item in value)
+    if cls is tuple:
+        return tuple(_snapshot(item) for item in value)
+    return deepcopy(value)
+
+
+def _unwrap(value: Any) -> Any:
+    """Return value with any nested proxies replaced by plain deep copies of
+    their data, so that proxies never end up inside the draft.
+
+    Returns the original object untouched when it contains no proxies (the
+    common case). Assigning a proxy therefore stores a copy of its current
+    data (value semantics): later mutations through the original path are
+    not shared, which keeps the recorded patches consistent.
+
+    Set members must be hashable and proxies are not, so sets can never
+    contain proxies and are returned as-is.
+    """
+    cls = value.__class__
+    if cls in _SCALAR_TYPES:
+        return value
+    if cls is DictProxy or cls is ListProxy or cls is SetProxy:
+        return _snapshot(value._data)
+    if cls is dict:
+        for item in value.values():
+            if _unwrap(item) is not item:
+                return {key: _unwrap(item) for key, item in value.items()}
+        return value
+    if cls is list:
+        for item in value:
+            if _unwrap(item) is not item:
+                return [_unwrap(item) for item in value]
+        return value
+    if cls is tuple:
+        for item in value:
+            if _unwrap(item) is not item:
+                return tuple(_unwrap(item) for item in value)
+        return value
+    return value
+
 
 def _add_reader_methods(proxy_class, method_names):
     """Add simple pass-through reader methods to a proxy class.
@@ -51,7 +116,7 @@ class PatchRecorder:
                          If not provided, uses the same path. This is needed
                          for sets where add uses "/-" but remove needs "/value".
         """
-        self.patches.append({"op": "add", "path": path, "value": deepcopy(value)})
+        self.patches.append({"op": "add", "path": path, "value": _snapshot(value)})
         self.reverse_patches.insert(
             0, {"op": "remove", "path": reverse_path if reverse_path else path}
         )
@@ -75,7 +140,7 @@ class PatchRecorder:
             {
                 "op": "add",
                 "path": reverse_path if reverse_path else path,
-                "value": deepcopy(old_value),
+                "value": _snapshot(old_value),
             },
         )
 
@@ -84,10 +149,10 @@ class PatchRecorder:
         if old_value == new_value:
             return  # Skip no-op replacements
         self.patches.append(
-            {"op": "replace", "path": path, "value": deepcopy(new_value)}
+            {"op": "replace", "path": path, "value": _snapshot(new_value)}
         )
         self.reverse_patches.insert(
-            0, {"op": "replace", "path": path, "value": deepcopy(old_value)}
+            0, {"op": "replace", "path": path, "value": _snapshot(old_value)}
         )
 
 
@@ -102,6 +167,10 @@ class DictProxy:
         self._recorder = recorder
         self._path = path
         self._proxies = {}
+
+    def __deepcopy__(self, memo):
+        # Deep copies of a proxy must yield plain data, never the proxy
+        return deepcopy(self._data, memo)
 
     def _wrap(self, key: Any, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
@@ -129,6 +198,7 @@ class DictProxy:
         return self._wrap(key, value)
 
     def __setitem__(self, key: Any, value: Any) -> None:
+        value = _unwrap(value)
         path = self._path.append(key)
         if key in self._data:
             old_value = self._data[key]
@@ -172,7 +242,8 @@ class DictProxy:
     def setdefault(self, key: Any, default=None):
         if key not in self._data:
             self[key] = default
-            return default
+        # Return through __getitem__ so containers come back proxied and
+        # further mutations on the returned value are tracked
         return self[key]
 
     def update(self, *args, **kwargs):
@@ -188,6 +259,7 @@ class DictProxy:
 
         # Generate patches and update data
         for key, value in items:
+            value = _unwrap(value)
             path = self._path.append(key)
             if key in self._data:
                 old_value = self._data[key]
@@ -272,6 +344,10 @@ class ListProxy:
         self._path = path
         self._proxies = {}
 
+    def __deepcopy__(self, memo):
+        # Deep copies of a proxy must yield plain data, never the proxy
+        return deepcopy(self._data, memo)
+
     def _wrap(self, index: int, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
         # Check cache first - it's faster than hasattr() calls
@@ -308,6 +384,7 @@ class ListProxy:
     def __setitem__(self, index: Union[int, slice], value: Any) -> None:
         if isinstance(index, slice):
             # Handle slice assignment with proper patch generation
+            value = [_unwrap(item) for item in value]
             start, stop, step = index.indices(len(self._data))
 
             if step != 1:
@@ -366,6 +443,7 @@ class ListProxy:
         # Resolve negative indices to positive for correct paths
         if index < 0:
             index = len(self._data) + index
+        value = _unwrap(value)
         path = self._path.append(index)
         old_value = self._data[index]
         self._recorder.record_replace(path, old_value, value)
@@ -411,6 +489,7 @@ class ListProxy:
         self._proxies.clear()
 
     def append(self, value: Any) -> None:
+        value = _unwrap(value)
         # Forward patch uses "-" (append to end), reverse patch uses actual index
         forward_path = self._path.append("-")
         reverse_path = self._path.append(len(self._data))
@@ -418,6 +497,7 @@ class ListProxy:
         self._data.append(value)
 
     def insert(self, index: int, value: Any) -> None:
+        value = _unwrap(value)
         # Use the index for insertion
         path = self._path.append(index)
         self._recorder.record_add(path, value)
@@ -456,7 +536,7 @@ class ListProxy:
 
     def extend(self, values):
         # Generate patches and extend data
-        values_list = list(values)
+        values_list = [_unwrap(value) for value in values]
         start_index = len(self._data)
         for i, value in enumerate(values_list):
             forward_path = self._path.append("-")
@@ -559,6 +639,10 @@ class SetProxy:
         self._data = data
         self._recorder = recorder
         self._path = path
+
+    def __deepcopy__(self, memo):
+        # Deep copies of a proxy must yield plain data, never the proxy
+        return deepcopy(self._data, memo)
 
     def add(self, value: Any) -> None:
         if value not in self._data:
