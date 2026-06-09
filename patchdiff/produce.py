@@ -107,11 +107,23 @@ def _add_reader_methods(proxy_class, method_names):
 
 
 class PatchRecorder:
-    """Records patches as mutations happen on proxy objects."""
+    """Records patches as mutations happen on proxy objects.
+
+    Reverse patches must run in the opposite order of the forward patches.
+    They are appended here (O(1) instead of O(n) for inserting at the
+    front) and reversed once in finalize().
+    """
 
     def __init__(self):
         self.patches: List[Dict] = []
         self.reverse_patches: List[Dict] = []
+
+    def finalize(self) -> None:
+        """Put the reverse patches in reverse application order.
+
+        Call once, after all mutations have been recorded.
+        """
+        self.reverse_patches.reverse()
 
     def record_add(
         self, path: Pointer, value: Any, reverse_path: Pointer = None
@@ -125,9 +137,11 @@ class PatchRecorder:
                          If not provided, uses the same path. This is needed
                          for sets where add uses "/-" but remove needs "/value".
         """
-        self.patches.append({"op": "add", "path": path, "value": _snapshot(value)})
-        self.reverse_patches.insert(
-            0, {"op": "remove", "path": reverse_path if reverse_path else path}
+        if value.__class__ not in _SCALAR_TYPES:
+            value = _snapshot(value)
+        self.patches.append({"op": "add", "path": path, "value": value})
+        self.reverse_patches.append(
+            {"op": "remove", "path": reverse_path if reverse_path else path}
         )
 
     def record_remove(
@@ -143,26 +157,27 @@ class PatchRecorder:
                          for lists where remove uses "/index" but add needs "/-"
                          when removing from the end.
         """
+        if old_value.__class__ not in _SCALAR_TYPES:
+            old_value = _snapshot(old_value)
         self.patches.append({"op": "remove", "path": path})
-        self.reverse_patches.insert(
-            0,
+        self.reverse_patches.append(
             {
                 "op": "add",
                 "path": reverse_path if reverse_path else path,
-                "value": _snapshot(old_value),
-            },
+                "value": old_value,
+            }
         )
 
     def record_replace(self, path: Pointer, old_value: Any, new_value: Any) -> None:
         """Record a replace operation, but only if the value actually changed."""
         if old_value == new_value:
             return  # Skip no-op replacements
-        self.patches.append(
-            {"op": "replace", "path": path, "value": _snapshot(new_value)}
-        )
-        self.reverse_patches.insert(
-            0, {"op": "replace", "path": path, "value": _snapshot(old_value)}
-        )
+        if new_value.__class__ not in _SCALAR_TYPES:
+            new_value = _snapshot(new_value)
+        if old_value.__class__ not in _SCALAR_TYPES:
+            old_value = _snapshot(old_value)
+        self.patches.append({"op": "replace", "path": path, "value": new_value})
+        self.reverse_patches.append({"op": "replace", "path": path, "value": old_value})
 
 
 class _Proxy:
@@ -969,8 +984,13 @@ def produce(
         # Don't unwrap or copy - use the base object as-is
         draft = base
     else:
-        # Create a deep copy of the base object
-        draft = deepcopy(base)
+        # Create a deep copy of the base object. _snapshot copies the
+        # common JSON-like types directly (faster than copy.deepcopy);
+        # unknown types (e.g. observ proxies) fall back to deepcopy.
+        # Note: unlike deepcopy, _snapshot does not preserve shared
+        # references within the base; aliased subtrees become independent
+        # copies in the draft (which is what patches can express anyway).
+        draft = _snapshot(base)
 
     # Create a patch recorder
     recorder = PatchRecorder()
@@ -988,6 +1008,9 @@ def produce(
 
     # Call the recipe function with the proxy
     recipe(proxy)
+
+    # Put the reverse patches in reverse application order
+    recorder.finalize()
 
     # Return the mutated draft and the patches
     return draft, recorder.patches, recorder.reverse_patches
