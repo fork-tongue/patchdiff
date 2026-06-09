@@ -183,6 +183,24 @@ def test_mutation_through_cleared_container_not_recorded():
     assert all("99" not in str(p) for p in patches)
 
 
+def test_dead_ancestor_reference_treated_as_detached():
+    """Parent links are weak references. When a detached ancestor is
+    garbage collected, proxies below it must behave as detached:
+    mutations apply to their data but are not recorded."""
+    base = {"a": {"b": {"c": {"x": 1}}}}
+
+    def recipe(draft):
+        b = draft["a"]["b"]  # keep the middle proxy alive
+        c = b["c"]
+        del draft["a"]  # detaches the "a" proxy; nothing else holds it
+        c["x"] = 99  # the "a" proxy is collected: must not record
+
+    result, patches, _reverse = assert_clean_roundtrip(base, recipe)
+
+    assert result == {}
+    assert len(patches) == 1  # only the remove
+
+
 def test_mutation_through_child_of_detached_subtree_not_recorded():
     """Detachment is transitive: children of a removed subtree must not
     record either."""

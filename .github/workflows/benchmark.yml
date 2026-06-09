@@ -36,11 +36,13 @@ jobs:
           # Restore PR code
           git checkout HEAD -- patchdiff/
 
-          # Run benchmarks on PR code and compare
+          # Run benchmarks on PR code and compare. Gate on the median:
+          # the mean is easily skewed by scheduler/gc latency spikes on
+          # shared runners (untouched code has shown +16% mean swings).
           uv run --no-sync pytest benchmarks/benchmark.py \
               --benchmark-only \
               --benchmark-compare \
-              --benchmark-compare-fail=mean:5% \
+              --benchmark-compare-fail=median:5% \
               --benchmark-save=branch \
               --benchmark-sort=mean
 

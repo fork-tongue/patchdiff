@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Tuple, Union
+from weakref import ref
 
 from .pointer import Pointer
 
@@ -113,32 +114,23 @@ class PatchRecorder:
     They are appended here (O(1) instead of O(n) for inserting at the
     front) and reversed once in finalize().
 
-    The recorder also keeps a registry of every proxy created during the
-    recipe. Proxies form reference cycles (child -> parent -> child cache),
-    which makes them cyclic garbage that only the gc can reclaim; that
-    showed up as large latency spikes in benchmarks. finalize() breaks the
-    cycles so proxies are freed by reference counting again.
     """
 
     def __init__(self):
         self.patches: List[Dict] = []
         self.reverse_patches: List[Dict] = []
-        self.proxies: List["_Proxy"] = []
 
-    def finalize(self) -> None:
+    def finalize(self, root: "_Proxy") -> None:
         """Put the reverse patches in reverse application order and
-        release all proxies.
+        detach the root proxy.
 
-        Call once, after all mutations have been recorded. Released
-        proxies stop recording, so a proxy leaked out of the recipe can
-        no longer append to the already-returned patch lists.
+        Call once, after all mutations have been recorded. Every attached
+        proxy computes its path through the root, so detaching the root
+        stops all recording: a proxy leaked out of the recipe can no
+        longer append to the already-returned patch lists.
         """
         self.reverse_patches.reverse()
-        for proxy in self.proxies:
-            proxy._detached = True
-            proxy._parent = None
-            proxy._proxies.clear()
-        self.proxies.clear()
+        root._detached = True
 
     def record_add(
         self, path: Pointer, value: Any, reverse_path: Pointer = None
@@ -205,9 +197,22 @@ class _Proxy:
     keys (list shifts, sort, reverse) or mark them detached (removals and
     replacements). Detached proxies still mutate their data but no longer
     record patches.
+
+    The parent link is a weak reference, so proxies never form reference
+    cycles and are freed by reference counting (cyclic proxy garbage
+    caused gc latency spikes). A dead parent reference means an ancestor
+    was detached and dropped, so the proxy behaves as detached.
     """
 
-    __slots__ = ("_data", "_detached", "_key", "_parent", "_proxies", "_recorder")
+    __slots__ = (
+        "__weakref__",
+        "_data",
+        "_detached",
+        "_key",
+        "_parent",
+        "_proxies",
+        "_recorder",
+    )
     __hash__ = None  # mutable containers are unhashable
 
     def __init__(
@@ -219,12 +224,12 @@ class _Proxy:
     ):
         self._data = data
         self._recorder = recorder
-        self._parent = parent
+        self._parent = ref(parent) if parent is not None else None
         self._key = key
         self._detached = False
-        self._proxies = {}
-        # Register for cycle breaking in PatchRecorder.finalize()
-        recorder.proxies.append(self)
+        # Child-proxy registry, allocated lazily on first wrap: most
+        # proxies are leaves that never hand out children
+        self._proxies = None
 
     def __deepcopy__(self, memo):
         # Deep copies of a proxy must yield plain data, never the proxy
@@ -232,33 +237,39 @@ class _Proxy:
 
     def _location(self) -> tuple | None:
         """Path tokens of this proxy in the draft, or None when this proxy
-        or any of its ancestors has been detached from the draft.
+        or any of its ancestors has been detached from the draft (a dead
+        parent reference counts as detached).
 
         Returns a tuple so callers can build a child Pointer in a single
         allocation: Pointer((*tokens, key))."""
         if self._detached:
             return None
-        parent = self._parent
-        if parent is None:
+        parent_ref = self._parent
+        if parent_ref is None:
             return ()
+        node = parent_ref()
+        if node is None:
+            return None
         tokens = [self._key]
-        node = parent
         while True:
             if node._detached:
                 return None
-            parent = node._parent
-            if parent is None:
+            parent_ref = node._parent
+            if parent_ref is None:
                 break
             tokens.append(node._key)
-            node = parent
+            node = parent_ref()
+            if node is None:
+                return None
         tokens.reverse()
         return tuple(tokens)
 
     def _wrap(self, key: Hashable, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
         # Check cache first - it's faster than hasattr() calls
-        if key in self._proxies:
-            return self._proxies[key]
+        proxies = self._proxies
+        if proxies is not None and key in proxies:
+            return proxies[key]
 
         # Use duck typing to support observ reactive objects and other proxies
         if hasattr(value, "keys"):  # dict-like
@@ -269,16 +280,23 @@ class _Proxy:
             proxy = SetProxy(value, self._recorder, self, key)
         else:
             return value
-        self._proxies[key] = proxy
+        if proxies is None:
+            proxies = self._proxies = {}
+        proxies[key] = proxy
         return proxy
 
     def _detach(self, key: Hashable) -> None:
-        """Detach the handed-out child proxy for key, if any."""
+        """Detach the handed-out child proxy for key, if any.
+
+        Only called when self._proxies is non-empty (callers guard).
+        """
         proxy = self._proxies.pop(key, None)
         if proxy is not None:
             proxy._detached = True
 
     def _detach_all(self) -> None:
+        if not self._proxies:
+            return
         for proxy in self._proxies.values():
             proxy._detached = True
         self._proxies.clear()
@@ -289,7 +307,8 @@ class _Proxy:
         while node is not None:
             if node is proxy:
                 return True
-            node = node._parent
+            parent_ref = node._parent
+            node = parent_ref() if parent_ref is not None else None
         return False
 
     def _adopt(self, key: Hashable, value: Any) -> Any:
@@ -312,8 +331,10 @@ class _Proxy:
                 and not self._in_parent_chain(value)
             ):
                 value._detached = False
-                value._parent = self
+                value._parent = ref(self)
                 value._key = key
+                if self._proxies is None:
+                    self._proxies = {}
                 self._proxies[key] = value
                 return value._data
             return _snapshot(value._data)
@@ -1026,8 +1047,9 @@ def produce(
     # Call the recipe function with the proxy
     recipe(proxy)
 
-    # Put the reverse patches in reverse application order
-    recorder.finalize()
+    # Put the reverse patches in reverse application order and release
+    # all proxies (breaks their reference cycles)
+    recorder.finalize(proxy)
 
     # Return the mutated draft and the patches
     return draft, recorder.patches, recorder.reverse_patches
