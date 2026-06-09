@@ -16,6 +16,9 @@ from .pointer import Pointer
 # stored and snapshotted as-is.
 _SCALAR_TYPES = frozenset({int, float, complex, bool, str, bytes, type(None)})
 
+# Sentinel to distinguish "no default given" from falsy defaults like None or 0
+_MISSING = object()
+
 
 def _snapshot(value: Any) -> Any:
     """Deep copy a value for storage in a patch, replacing any proxies with
@@ -224,7 +227,7 @@ class DictProxy:
             return self[key]
         return default
 
-    def pop(self, key: Any, default=None):
+    def pop(self, key: Any, default=_MISSING):
         if key in self._data:
             old_value = self._data[key]
             path = self._path.append(key)
@@ -234,10 +237,9 @@ class DictProxy:
             if key in self._proxies:
                 del self._proxies[key]
             return result
-        elif default:
-            return default
-        else:
+        if default is _MISSING:
             raise KeyError(key)
+        return default
 
     def setdefault(self, key: Any, default=None):
         if key not in self._data:

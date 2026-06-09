@@ -271,6 +271,23 @@ def test_dict_pop_with_default():
     assert len(patches) == 0  # No mutations
 
 
+def test_dict_pop_with_falsy_default():
+    """Test pop() with falsy defaults (None, 0, "") returns the default
+    instead of raising KeyError."""
+    base = {"a": 1}
+
+    def recipe(draft):
+        assert draft.pop("missing", None) is None
+        assert draft.pop("missing", 0) == 0
+        assert draft.pop("missing", "") == ""
+        assert draft.pop("missing", False) is False
+
+    result, patches, _reverse = produce(base, recipe)
+
+    assert result == {"a": 1}
+    assert len(patches) == 0  # No mutations
+
+
 def test_dict_pop_missing_key_no_default():
     """Test pop() with missing key and no default raises KeyError."""
     base = {"a": 1}
