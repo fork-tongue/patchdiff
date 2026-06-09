@@ -112,18 +112,33 @@ class PatchRecorder:
     Reverse patches must run in the opposite order of the forward patches.
     They are appended here (O(1) instead of O(n) for inserting at the
     front) and reversed once in finalize().
+
+    The recorder also keeps a registry of every proxy created during the
+    recipe. Proxies form reference cycles (child -> parent -> child cache),
+    which makes them cyclic garbage that only the gc can reclaim; that
+    showed up as large latency spikes in benchmarks. finalize() breaks the
+    cycles so proxies are freed by reference counting again.
     """
 
     def __init__(self):
         self.patches: List[Dict] = []
         self.reverse_patches: List[Dict] = []
+        self.proxies: List["_Proxy"] = []
 
     def finalize(self) -> None:
-        """Put the reverse patches in reverse application order.
+        """Put the reverse patches in reverse application order and
+        release all proxies.
 
-        Call once, after all mutations have been recorded.
+        Call once, after all mutations have been recorded. Released
+        proxies stop recording, so a proxy leaked out of the recipe can
+        no longer append to the already-returned patch lists.
         """
         self.reverse_patches.reverse()
+        for proxy in self.proxies:
+            proxy._detached = True
+            proxy._parent = None
+            proxy._proxies.clear()
+        self.proxies.clear()
 
     def record_add(
         self, path: Pointer, value: Any, reverse_path: Pointer = None
@@ -208,6 +223,8 @@ class _Proxy:
         self._key = key
         self._detached = False
         self._proxies = {}
+        # Register for cycle breaking in PatchRecorder.finalize()
+        recorder.proxies.append(self)
 
     def __deepcopy__(self, memo):
         # Deep copies of a proxy must yield plain data, never the proxy

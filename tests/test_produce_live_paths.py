@@ -330,6 +330,46 @@ def test_proxy_live_after_remove_of_earlier_element():
     assert [c["title"] for c in result["children"]] == ["B", "c"]
 
 
+# -- Proxy lifecycle after produce() returns --
+
+
+def test_produce_leaves_no_cyclic_garbage():
+    """Proxies form parent/child reference cycles during the recipe;
+    produce() must break them on the way out so they are freed by
+    reference counting (cyclic garbage caused gc latency spikes)."""
+    import gc
+
+    base = {"a": {"b": {"c": [{"x": 1}, {"x": 2}]}}}
+
+    def recipe(draft):
+        draft["a"]["b"]["c"][0]["x"] = 99
+
+    gc.collect()
+    gc.disable()
+    try:
+        produce(base, recipe)
+        assert gc.collect() == 0
+    finally:
+        gc.enable()
+
+
+def test_proxies_are_inert_after_produce():
+    """A proxy leaked out of the recipe must not record into the
+    already-returned patch lists."""
+    captured = {}
+
+    def recipe(draft):
+        captured["p"] = draft["a"]
+        draft["a"]["x"] = 2
+
+    _result, patches, reverse = produce({"a": {"x": 1}}, recipe)
+
+    n_patches, n_reverse = len(patches), len(reverse)
+    captured["p"]["x"] = 99  # after produce: must not record
+    assert len(patches) == n_patches
+    assert len(reverse) == n_reverse
+
+
 # -- Full regroup scenario from the scene-tree use case --
 
 
