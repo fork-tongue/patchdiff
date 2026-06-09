@@ -329,9 +329,6 @@ def test_regroup_getitem_then_pop_then_append():
     assert result["children"][-1]["children"] == [{"title": "c"}]
 
 
-@pytest.mark.xfail(
-    reason="requires Tier 2: detached proxies must stop recording", strict=True
-)
 def test_regroup_mutate_while_detached():
     """Mutating an item between detach and reattach. The mutation must not
     be recorded against the stale (removed) path; the reattach snapshot
@@ -348,7 +345,6 @@ def test_regroup_mutate_while_detached():
     assert result["children"][-1]["children"] == [{"title": "moved"}]
 
 
-@pytest.mark.xfail(reason="requires Tier 2: parent-linked live paths", strict=True)
 def test_stale_index_path_after_insert():
     """A held proxy must not record against its old index after the list
     shifted underneath it. Currently this silently corrupts patches:
@@ -364,7 +360,6 @@ def test_stale_index_path_after_insert():
     assert [c["title"] for c in result["children"]] == ["new", "a", "b", "renamed"]
 
 
-@pytest.mark.xfail(reason="requires Tier 2: parent-linked live paths", strict=True)
 def test_stale_index_path_after_del():
     """Same as above but shifting the other way via a deletion."""
 
