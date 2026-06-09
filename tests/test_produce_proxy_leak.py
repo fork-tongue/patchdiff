@@ -142,6 +142,19 @@ def test_list_slice_assignment_with_proxies():
     assert type(result["items"][2]) is dict
 
 
+def test_tuple_containing_proxy_is_unwrapped():
+    """Proxies hidden inside tuples must be unwrapped as well."""
+    base = {"a": {"x": 1}}
+
+    def recipe(draft):
+        draft["pair"] = (draft["a"], 2)
+
+    result, _patches, _reverse = assert_clean_roundtrip(base, recipe)
+
+    assert type(result["pair"]) is tuple
+    assert type(result["pair"][0]) is dict
+
+
 def test_dict_update_with_proxy_values():
     base = {"a": {"x": 1}}
 

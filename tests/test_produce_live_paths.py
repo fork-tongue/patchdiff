@@ -254,6 +254,36 @@ def test_proxy_replaced_by_slice_assignment_is_detached():
     assert [i["t"] for i in result["items"]] == ["x", "b"]
 
 
+def test_step_slice_assignment_detaches_replaced_proxies():
+    base = {"items": [{"t": "a"}, {"t": "b"}, {"t": "c"}, {"t": "d"}]}
+
+    def recipe(draft):
+        p0 = draft["items"][0]
+        p1 = draft["items"][1]
+        draft["items"][::2] = [{"t": "A"}, {"t": "C"}]  # replaces 0 and 2
+        p0["t"] = "zzz"  # detached: not recorded, not in result
+        p1["t"] = "B"  # untouched by the slice: still live
+
+    result, _patches, _reverse = assert_clean_roundtrip(base, recipe)
+
+    assert [i["t"] for i in result["items"]] == ["A", "B", "C", "d"]
+
+
+def test_step_slice_deletion_shifts_held_proxies():
+    base = {"items": [{"t": "a"}, {"t": "b"}, {"t": "c"}, {"t": "d"}, {"t": "e"}]}
+
+    def recipe(draft):
+        p1 = draft["items"][1]
+        p3 = draft["items"][3]
+        del draft["items"][::2]  # deletes 0, 2 and 4
+        p1["t"] = "B"  # now at index 0
+        p3["t"] = "D"  # now at index 1
+
+    result, _patches, _reverse = assert_clean_roundtrip(base, recipe)
+
+    assert [i["t"] for i in result["items"]] == ["B", "D"]
+
+
 def test_proxy_live_after_reverse():
     def recipe(draft):
         p = draft["children"][0]  # "a"

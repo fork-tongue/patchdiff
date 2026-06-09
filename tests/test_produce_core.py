@@ -917,3 +917,59 @@ class TestPatchSnapshotting:
         }
         assert apply({}, patches) == result
         assert apply(result, reverse) == {}
+
+    def test_tuple_and_frozenset_values_are_snapshotted(self):
+        """Tuples and frozensets in patch values are copied per element."""
+
+        def recipe(draft):
+            draft["t"] = (1, [2, 3])
+            draft["f"] = frozenset({1, 2})
+
+        result, patches, _reverse = produce({}, recipe)
+        assert result == {"t": (1, [2, 3]), "f": frozenset({1, 2})}
+        # The list inside the assigned tuple must not be shared with the
+        # patch value snapshot
+        result["t"][1].append(99)
+        assert apply({}, patches) == {"t": (1, [2, 3]), "f": frozenset({1, 2})}
+
+
+class TestDeepcopyOfProxies:
+    """deepcopy of a proxy (e.g. taken inside a recipe) yields plain data."""
+
+    def test_deepcopy_of_draft_and_children_yields_plain_data(self):
+        import copy
+
+        base = {"d": {"x": 1}, "l": [1, 2], "s": {1, 2}}
+        captured = {}
+
+        def recipe(draft):
+            captured["root"] = copy.deepcopy(draft)
+            captured["dict"] = copy.deepcopy(draft["d"])
+            captured["list"] = copy.deepcopy(draft["l"])
+            captured["set"] = copy.deepcopy(draft["s"])
+
+        produce(base, recipe)
+
+        assert type(captured["root"]) is dict
+        assert captured["root"] == base
+        assert type(captured["dict"]) is dict
+        assert type(captured["list"]) is list
+        assert type(captured["set"]) is set
+        # The copies must be independent of the draft
+        assert captured["root"]["d"] is not base["d"]
+
+
+def test_snapshot_unwraps_proxy_passed_directly():
+    """_snapshot must unwrap proxies itself (defense in depth: write paths
+    pre-unwrap values, but a future write path that forgets must not leak
+    proxies into patches)."""
+    from patchdiff.produce import PatchRecorder, _snapshot
+
+    recorder = PatchRecorder()
+    proxy = DictProxy({"x": [1]}, recorder)
+
+    snap = _snapshot(proxy)
+
+    assert type(snap) is dict
+    assert snap == {"x": [1]}
+    assert snap["x"] is not proxy._data["x"]
