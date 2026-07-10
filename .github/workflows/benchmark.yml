@@ -26,26 +26,39 @@ jobs:
       - name: Install dependencies
         run: uv sync --group observ
 
-      # On PRs: run benchmarks twice (PR code vs master code) and compare
+      # Single runs are too noisy to gate on (see benchmarks/compare_runs.py),
+      # so master and PR code are benchmarked interleaved, three runs each,
+      # with hash randomization pinned so dict/set timings are comparable
+      # between processes. The master runs are `|| true` so a baseline that
+      # can't run (e.g. benchmarks exercising new APIs) skips the compare
+      # instead of failing the job.
       - name: Run benchmarks
+        env:
+          PYTHONHASHSEED: "0"
         run: |
-          # Checkout master version of patchdiff directory
           git fetch origin master
-          git checkout origin/master -- patchdiff/
 
-          # Run benchmarks with master code as baseline
-          uv run --no-sync pytest benchmarks/benchmark.py \
-              --benchmark-only \
-              --benchmark-save=master \
-              --benchmark-sort=mean || true
+          for i in 1 2 3; do
+            git checkout origin/master -- patchdiff/
+            uv run --no-sync pytest benchmarks/benchmark.py \
+                --benchmark-only \
+                --benchmark-save=master$i \
+                --benchmark-sort=mean || true
 
-          # Restore PR code
-          git checkout HEAD -- patchdiff/
+            git checkout HEAD -- patchdiff/
+            uv run --no-sync pytest benchmarks/benchmark.py \
+                --benchmark-only \
+                --benchmark-save=branch$i \
+                --benchmark-sort=mean
+          done
 
-          # Run benchmarks on PR code and compare
-          uv run --no-sync pytest benchmarks/benchmark.py \
-              --benchmark-only \
-              --benchmark-compare \
-              --benchmark-compare-fail=mean:5% \
-              --benchmark-save=branch \
-              --benchmark-sort=mean
+      # The 25% threshold is a tripwire for gross accidental regressions,
+      # not a precision instrument: CI noise between runs of identical code
+      # reaches 10-30%. Smaller deltas should be measured with deliberate
+      # repeated local runs.
+      - name: Compare benchmarks
+        run: |
+          uv run --no-sync python benchmarks/compare_runs.py \
+              --baseline '.benchmarks/*/*_master?.json' \
+              --branch '.benchmarks/*/*_branch?.json' \
+              --threshold 0.25
