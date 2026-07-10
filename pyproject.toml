@@ -17,6 +17,7 @@ Homepage = "https://github.com/fork-tongue/patchdiff"
 [dependency-groups]
 dev = [
     "ruff",
+    "hypothesis",
     "pytest",
     "pytest-cov",
     "pytest-watch",

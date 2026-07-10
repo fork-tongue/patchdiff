@@ -8,6 +8,7 @@ Patchdiff's patches are JSON-patch *compliant* for JSON-shaped data (dicts with 
 * **Tuples and frozensets** are treated as atomic values — they are never diffed into, only replaced wholesale.
 * **Pointer tokens can be non-strings** (integer list indices, set members). They stringify losslessly for lists, but set-member tokens can't be parsed back from a string — see [Serialization](serialization.md#non-json-values).
 * **Only `add`, `remove` and `replace` are emitted.** `move`, `copy` and `test` from RFC 6902 are neither generated nor understood by [`apply`][patchdiff.apply.apply]/[`iapply`][patchdiff.apply.iapply].
+* **Operations on the document root are not supported.** Patches address locations *inside* a container. Diffing two documents of different top-level kinds (say a list against a dict) yields a whole-document `replace` at the root, which `apply`/`iapply` cannot execute — keep the top-level type of your state stable.
 
 If you feed patches to a strict third-party JSON patch implementation, stick to JSON-shaped data and everything lines up.
 

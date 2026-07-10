@@ -89,3 +89,24 @@ def test_pointer_evaluate_raises_on_out_of_range_list_index():
 def test_pointer_evaluate_raises_when_traversing_into_primitive():
     with pytest.raises(TypeError):
         Pointer(["a", "b"]).evaluate({"a": 5})
+
+
+def test_pointer_evaluate_raises_when_traversing_primitive_mid_path():
+    with pytest.raises(TypeError):
+        Pointer(["a", "b", "c"]).evaluate({"a": 5})
+
+
+def test_parsed_pointer_evaluates_through_lists():
+    # Pointers parsed from strings carry string tokens; evaluate must
+    # convert them to list indices while walking to the parent, or
+    # serialized patches with nested-list paths cannot be applied.
+    obj = {"baz": [{"qux": "hello"}]}
+    parent, key, value = Pointer.from_str("/baz/0/qux").evaluate(obj)
+    assert parent is obj["baz"][0]
+    assert key == "qux"
+    assert value == "hello"
+
+
+def test_parsed_pointer_evaluate_raises_on_non_numeric_list_token():
+    with pytest.raises(ValueError):
+        Pointer.from_str("/a/foo/b").evaluate({"a": [{"b": 1}]})
