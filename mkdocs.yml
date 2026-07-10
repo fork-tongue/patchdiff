@@ -1,0 +1,66 @@
+site_name: Patchdiff
+site_description: Bidirectional, JSON-patch-compliant diffs between Python data structures
+site_url: https://fork-tongue.github.io/patchdiff
+repo_url: https://github.com/fork-tongue/patchdiff
+repo_name: fork-tongue/patchdiff
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            show_root_heading: true
+            heading_level: 3
+            members_order: source
+            separate_signature: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+  - Guide:
+      - Diffing: guide/diffing.md
+      - Applying Patches: guide/applying.md
+      - JSON Pointers: guide/pointers.md
+      - Proxy-Based Patch Generation: guide/produce.md
+      - Serialization: guide/serialization.md
+      - Observ Integration: guide/observ.md
+      - Gotchas and Best Practices: guide/gotchas.md
+  - Reference:
+      - API Reference: reference/api.md
+  - Internals:
+      - Architecture: internals/architecture.md

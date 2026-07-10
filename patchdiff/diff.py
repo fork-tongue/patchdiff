@@ -215,6 +215,27 @@ def diff_sets(input: Set, output: Set, ptr: Pointer) -> Tuple[List, List]:
 def diff(
     input: Diffable, output: Diffable, ptr: Pointer | None = None
 ) -> Tuple[List, List]:
+    """Compute the difference between two objects as JSON patch operations.
+
+    Recursively compares `input` and `output` and returns operations in
+    both directions. Dicts, lists and sets are compared structurally;
+    any other value (scalars, but also tuples and frozensets) is treated
+    as atomic and replaced wholesale when it differs.
+
+    Args:
+        input: The source object.
+        output: The target object.
+        ptr: Pointer prefix for the emitted operations; used internally
+            during recursion. Leave as `None` to diff from the root.
+
+    Returns:
+        A tuple `(ops, reverse_ops)`: applying `ops` to `input` yields
+        `output`, and applying `reverse_ops` to `output` yields `input`
+        again. Each operation is a dict with an `"op"` key (`"add"`,
+        `"remove"` or `"replace"`), a `"path"` key holding a
+        [`Pointer`][patchdiff.pointer.Pointer], and a `"value"` key for
+        add/replace operations.
+    """
     if input == output:
         return [], []
     if ptr is None:
