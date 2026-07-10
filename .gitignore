@@ -6,3 +6,4 @@ dist
 uv.lock
 .benchmarks/
 .venv
+site/

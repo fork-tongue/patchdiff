@@ -24,6 +24,11 @@ ruff = ["ruff"]
 observ = [
     "observ>=0.18.0",
 ]
+docs = [
+    "mkdocs>=1,<2",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
 
 [tool.ruff.lint]
 extend-select = [
