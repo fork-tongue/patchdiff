@@ -78,7 +78,15 @@ class Pointer:
             # parent would let iapply write to the wrong place.
             for key in tokens[:-1]:
                 parent = cursor
-                cursor = parent[key]
+                try:
+                    cursor = parent[key]
+                except TypeError:
+                    # Pointers parsed from strings carry string tokens;
+                    # sequences reject those, so retry list indices as
+                    # integers (iapply does the same at the leaf).
+                    if not hasattr(parent, "append"):
+                        raise
+                    cursor = parent[int(key)]
             # The leaf may legitimately not exist (add ops on dicts, list
             # "-" append) so we tolerate lookup failures there — but only
             # when the parent is itself a container we can write into.
