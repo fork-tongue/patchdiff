@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple
+from typing import Any, cast
 
 from .pointer import Pointer
-from .types import Diffable
+from .types import Diffable, Operation
 
 
-def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
+def diff_lists(
+    input: list, output: list, ptr: Pointer
+) -> tuple[list[Operation], list[Operation]]:
     m_full, n_full = len(input), len(output)
 
     # Strip common prefix so the DP table only covers the changed region.
@@ -55,8 +57,8 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
     # Traceback to extract operations. Indexes are emitted in sub-list
     # coordinates and shifted by `prefix` below so they refer to positions
     # in the original input/output.
-    ops = []
-    rops = []
+    ops: list[dict[str, Any]] = []
+    rops: list[dict[str, Any]] = []
     i, j = m, n
 
     while i > 0 or j > 0:
@@ -96,7 +98,7 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
             j -= 1
 
     # Apply padding to operations (using explicit loops instead of reduce)
-    padded_ops = []
+    padded_ops: list[Operation] = []
     padding = 0
     # Iterate in reverse to get correct order (traceback extracts operations backwards)
     for op in reversed(ops):
@@ -124,7 +126,7 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
             replace_ops, _ = diff(op["original"], op["value"], replace_ptr)
             padded_ops.extend(replace_ops)
 
-    padded_rops = []
+    padded_rops: list[Operation] = []
     padding = 0
     # Iterate in reverse to get correct order (traceback extracts operations backwards)
     for op in reversed(rops):
@@ -155,11 +157,13 @@ def diff_lists(input: List, output: List, ptr: Pointer) -> Tuple[List, List]:
     return padded_ops, padded_rops
 
 
-def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> Tuple[List, List]:
-    ops: List = []
-    input_only_rops: List = []
-    output_only_rops: List = []
-    common_rops_chunks: List[List] = []
+def diff_dicts(
+    input: dict, output: dict, ptr: Pointer
+) -> tuple[list[Operation], list[Operation]]:
+    ops: list[Operation] = []
+    input_only_rops: list[Operation] = []
+    output_only_rops: list[Operation] = []
+    common_rops_chunks: list[list[Operation]] = []
 
     input_keys = set(input.keys()) if input else set()
     output_keys = set(output.keys()) if output else set()
@@ -185,7 +189,7 @@ def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> Tuple[List, List]:
     # Match the historical insert(0,…) + key_rops.extend(rops) layering:
     # later common chunks went in front of earlier ones, and the input/output
     # singletons sat behind them in reverse iteration order.
-    rops: List = []
+    rops: list[Operation] = []
     for chunk in reversed(common_rops_chunks):
         rops.extend(chunk)
     rops.extend(output_only_rops)
@@ -193,10 +197,12 @@ def diff_dicts(input: Dict, output: Dict, ptr: Pointer) -> Tuple[List, List]:
     return ops, rops
 
 
-def diff_sets(input: Set, output: Set, ptr: Pointer) -> Tuple[List, List]:
-    ops: List = []
-    input_only_rops: List = []
-    output_only_rops: List = []
+def diff_sets(
+    input: set, output: set, ptr: Pointer
+) -> tuple[list[Operation], list[Operation]]:
+    ops: list[Operation] = []
+    input_only_rops: list[Operation] = []
+    output_only_rops: list[Operation] = []
 
     for value in input - output:
         ops.append({"op": "remove", "path": ptr.append(value)})
@@ -214,7 +220,7 @@ def diff_sets(input: Set, output: Set, ptr: Pointer) -> Tuple[List, List]:
 
 def diff(
     input: Diffable, output: Diffable, ptr: Pointer | None = None
-) -> Tuple[List, List]:
+) -> tuple[list[Operation], list[Operation]]:
     """Compute the difference between two objects as JSON patch operations.
 
     Recursively compares `input` and `output` and returns operations in
@@ -241,11 +247,11 @@ def diff(
     if ptr is None:
         ptr = Pointer()
     if hasattr(input, "append") and hasattr(output, "append"):  # list
-        return diff_lists(input, output, ptr)
+        return diff_lists(cast("list", input), cast("list", output), ptr)
     if hasattr(input, "keys") and hasattr(output, "keys"):  # dict
-        return diff_dicts(input, output, ptr)
+        return diff_dicts(cast("dict", input), cast("dict", output), ptr)
     if hasattr(input, "add") and hasattr(output, "add"):  # set
-        return diff_sets(input, output, ptr)
+        return diff_sets(cast("set", input), cast("set", output), ptr)
     return [{"op": "replace", "path": ptr, "value": output}], [
         {"op": "replace", "path": ptr, "value": input}
     ]

@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import json
-from typing import List
+from typing import Any
+
+from .types import Operation
 
 
-def to_str_paths(ops: List) -> List:
+def to_str_paths(ops: list[Operation]) -> list[dict[str, Any]]:
     """Return a copy of the operations with each path rendered as a string.
 
     The [`Pointer`][patchdiff.pointer.Pointer] objects in the `"path"`
@@ -12,7 +16,7 @@ def to_str_paths(ops: List) -> List:
     return [{**op, "path": str(op["path"])} for op in ops]
 
 
-def to_json(ops: List, **kwargs) -> str:
+def to_json(ops: list[Operation], **kwargs: Any) -> str:
     """Serialize a list of operations to a JSON patch (RFC 6902) string.
 
     Pointer paths are rendered as JSON pointer strings; any keyword
