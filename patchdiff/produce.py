@@ -14,10 +14,11 @@ is captured by the snapshot of whatever write re-inserts it later.
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, List, Tuple, Union
+from typing import Any, Callable, Hashable
 from weakref import ref
 
 from .pointer import Pointer
+from .types import Operation
 
 # Types that are immutable and can never contain a proxy, so they can be
 # stored and snapshotted as-is.
@@ -117,8 +118,8 @@ class PatchRecorder:
     """
 
     def __init__(self):
-        self.patches: List[Dict] = []
-        self.reverse_patches: List[Dict] = []
+        self.patches: list[Operation] = []
+        self.reverse_patches: list[Operation] = []
 
     def finalize(self, root: "_Proxy") -> None:
         """Put the reverse patches in reverse application order and
@@ -133,7 +134,7 @@ class PatchRecorder:
         root._detached = True
 
     def record_add(
-        self, path: Pointer, value: Any, reverse_path: Pointer = None
+        self, path: Pointer, value: Any, reverse_path: Pointer | None = None
     ) -> None:
         """Record an add operation.
 
@@ -215,6 +216,13 @@ class _Proxy:
     )
     __hash__ = None  # mutable containers are unhashable
 
+    _data: Any
+    _detached: bool
+    _key: Any
+    _parent: Any  # weakref.ref[_Proxy] | None
+    _proxies: dict[Any, _Proxy] | None
+    _recorder: PatchRecorder
+
     def __init__(
         self,
         data: Any,
@@ -290,7 +298,9 @@ class _Proxy:
 
         Only called when self._proxies is non-empty (callers guard).
         """
-        proxy = self._proxies.pop(key, None)
+        proxies = self._proxies
+        assert proxies is not None
+        proxy = proxies.pop(key, None)
         if proxy is not None:
             proxy._detached = True
 
@@ -495,7 +505,7 @@ class ListProxy(_Proxy):
             shifted[index] = proxy
         self._proxies = shifted
 
-    def __getitem__(self, index: Union[int, slice]) -> Any:
+    def __getitem__(self, index: int | slice) -> Any:
         value = self._data[index]
         if isinstance(index, slice):
             # Wrap each element in the slice so nested mutations are tracked
@@ -507,7 +517,7 @@ class ListProxy(_Proxy):
             index = len(self._data) + index
         return self._wrap(index, value)
 
-    def __setitem__(self, index: Union[int, slice], value: Any) -> None:
+    def __setitem__(self, index: int | slice, value: Any) -> None:
         if isinstance(index, slice):
             # Handle slice assignment with proper patch generation
             start, stop, step = index.indices(len(self._data))
@@ -595,7 +605,7 @@ class ListProxy(_Proxy):
             self._recorder.record_replace(Pointer((*tokens, index)), old_value, value)
         self._data[index] = value
 
-    def __delitem__(self, index: Union[int, slice]) -> None:
+    def __delitem__(self, index: int | slice) -> None:
         if isinstance(index, slice):
             # Handle slice deletion with proper patch generation
             start, stop, step = index.indices(len(self._data))
@@ -979,7 +989,7 @@ _add_reader_methods(
 
 def produce(
     base: Any, recipe: Callable[[Any], None], in_place: bool = False
-) -> Tuple[Any, List[Dict], List[Dict]]:
+) -> tuple[Any, list[Operation], list[Operation]]:
     """
     Produce a new state by applying mutations, tracking patches along the way.
 

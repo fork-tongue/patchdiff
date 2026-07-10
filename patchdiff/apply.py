@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import Dict, List
+from typing import Any, cast
 
-from .types import Diffable
+from .pointer import Pointer
+from .types import Diffable, Operation
 
 
-def iapply(obj: Diffable, patches: List[Dict]) -> Diffable:
+def iapply(obj: Diffable, patches: list[Operation]) -> Diffable:
     """Apply a list of patches to an object, in place.
 
     Patch values are deep-copied as they are written, so mutating the
@@ -22,12 +25,18 @@ def iapply(obj: Diffable, patches: List[Dict]) -> Diffable:
     if not patches:
         return obj
     for patch in patches:
-        ptr = patch["path"]
-        op = patch["op"]
-        parent, key, _ = ptr.evaluate(obj)
-        value = None
+        # The interpreter below is duck-typed on purpose (dict/list/set
+        # look-alikes such as observ proxies must work), so the operation
+        # is unpacked once into dynamically-typed locals.
+        op_dict = cast("dict[str, Any]", patch)
+        ptr: Pointer = op_dict["path"]
+        op: str = op_dict["op"]
+        target = ptr.evaluate(obj)
+        parent: Any = target[0]
+        key: Any = target[1]
+        value: Any = None
         if op != "remove":
-            value = deepcopy(patch["value"])
+            value = deepcopy(op_dict["value"])
         if hasattr(parent, "keys"):  # dict
             if op == "remove":
                 del parent[key]
@@ -56,7 +65,7 @@ def iapply(obj: Diffable, patches: List[Dict]) -> Diffable:
     return obj
 
 
-def apply(obj: Diffable, patches: List[Dict]) -> Diffable:
+def apply(obj: Diffable, patches: list[Operation]) -> Diffable:
     """Apply a list of patches to a deep copy of an object.
 
     Args:

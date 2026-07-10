@@ -59,7 +59,7 @@ class Pointer:
             return False
         return self.tokens == other.tokens
 
-    def evaluate(self, obj: Diffable) -> tuple[Diffable, Hashable, Any]:
+    def evaluate(self, obj: Diffable) -> tuple[Diffable | None, Hashable, Any]:
         """Resolve the pointer against an object.
 
         Returns:
@@ -69,9 +69,9 @@ class Pointer:
             exist yet (the target of an `"add"`, or a list append via
             the `"-"` token).
         """
-        key = ""
-        parent = None
-        cursor = obj
+        key: Hashable = ""
+        parent: Any = None
+        cursor: Any = obj
         if tokens := self.tokens:
             # Walk to the parent strictly: any failure here is a path that
             # doesn't exist in the target, and silently landing on a partial
