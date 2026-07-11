@@ -226,3 +226,28 @@ def test_prefix_suffix_with_equal_but_distinct_nested_objects():
         assert path_tokens and path_tokens[0] == 20, (
             f"unexpected op outside the middle region: {op}"
         )
+
+
+def test_mostly_different_large_lists_round_trip():
+    """Large list pairs with almost nothing in common hit the Myers
+    cutoff and are emitted as element-wise replaces, like the DP did."""
+    a = list(range(0, 200))
+    b = list(range(1000, 1200))  # fully disjoint
+    ops, rops = diff(a, b)
+    assert all(op["op"] == "replace" for op in ops)
+    assert len(ops) == 200
+    assert apply(a, ops) == b
+    assert apply(b, rops) == a
+
+
+def test_partially_common_large_lists_round_trip():
+    """A large pair sharing ~15% of elements (below the cutoff's 25%
+    threshold) still round-trips after the search gives up."""
+    rng = random.Random(7)
+    a = [rng.randint(0, 10_000) for _ in range(300)]
+    b = [rng.randint(0, 10_000) for _ in range(300)]
+    for i in range(0, 300, 7):  # sprinkle common elements
+        b[i] = a[i]
+    ops, rops = diff(a, b)
+    assert apply(a, ops) == b
+    assert apply(b, rops) == a
