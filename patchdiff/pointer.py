@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Hashable, Iterable
+from typing import Any, Hashable, Iterable, cast
 
 from .types import Diffable
 
@@ -86,7 +86,7 @@ class Pointer:
                     # integers (iapply does the same at the leaf).
                     if not hasattr(parent, "append"):
                         raise
-                    cursor = parent[int(key)]
+                    cursor = parent[int(cast("str", key))]
             # The leaf may legitimately not exist (add ops on dicts, list
             # "-" append) so we tolerate lookup failures there — but only
             # when the parent is itself a container we can write into.
