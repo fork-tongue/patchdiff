@@ -264,6 +264,36 @@ def test_apply_list_1000_elements(benchmark):
     benchmark(apply, a, ops)
 
 
+@pytest.mark.benchmark(group="apply")
+def test_apply_dict_many_ops(benchmark):
+    """Benchmark: apply a 400-op patch (replaces, adds, removes) to a
+    1000-key dict — the op-loop dominates over the deep copy."""
+    a = {f"key_{i}": i for i in range(1000)}
+    b = dict(a)
+    for i in range(200):
+        b[f"key_{i}"] = i + 10000
+    for i in range(100):
+        b[f"new_key_{i}"] = i
+    for i in range(100):
+        del b[f"key_{i + 200}"]
+    ops, _ = diff(a, b)
+
+    benchmark(apply, a, ops)
+
+
+@pytest.mark.benchmark(group="apply")
+def test_apply_nested_paths(benchmark):
+    """Benchmark: apply 100 replaces addressed three levels deep, so
+    pointer evaluation is a significant share of the work."""
+    base = {"items": [{"id": i, "meta": {"prio": i % 3}} for i in range(100)]}
+    changed = copy.deepcopy(base)
+    for item in changed["items"]:
+        item["meta"]["prio"] = 9
+    ops, _ = diff(base, changed)
+
+    benchmark(apply, base, ops)
+
+
 # ========================================
 # Pointer Evaluate Benchmarks
 # ========================================

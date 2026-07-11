@@ -6,6 +6,10 @@ from typing import Any, cast
 from .pointer import Pointer
 from .types import Diffable, Operation
 
+# Immutable types that can never contain (or be) shared mutable state, so
+# patch values of these types can be written without a defensive copy.
+_SCALAR_TYPES = frozenset({int, float, complex, bool, str, bytes, type(None)})
+
 
 def iapply(obj: Diffable, patches: list[Operation]) -> Diffable:
     """Apply a list of patches to an object, in place.
@@ -24,6 +28,8 @@ def iapply(obj: Diffable, patches: list[Operation]) -> Diffable:
     """
     if not patches:
         return obj
+    scalar_types = _SCALAR_TYPES
+    copy_value = deepcopy
     for patch in patches:
         # The interpreter below is duck-typed on purpose (dict/list/set
         # look-alikes such as observ proxies must work), so the operation
@@ -36,17 +42,24 @@ def iapply(obj: Diffable, patches: list[Operation]) -> Diffable:
         key: Any = target[1]
         value: Any = None
         if op != "remove":
-            value = deepcopy(op_dict["value"])
-        if hasattr(parent, "keys"):  # dict
+            value = op_dict["value"]
+            if value.__class__ not in scalar_types:
+                value = copy_value(value)
+        # Dispatch on the parent's exact class first (the overwhelmingly
+        # common case), falling back to duck typing for container
+        # look-alikes such as observ proxies.
+        parent_cls = parent.__class__
+        if parent_cls is dict or (parent_cls is not list and hasattr(parent, "keys")):
             if op == "remove":
                 del parent[key]
             else:  # add/replace
                 parent[key] = value
-        elif hasattr(parent, "append"):  # list
-            try:
-                key = int(key)
-            except ValueError:
-                pass
+        elif parent_cls is list or hasattr(parent, "append"):
+            if key.__class__ is not int:
+                try:
+                    key = int(key)
+                except ValueError:
+                    pass
 
             if op == "replace":
                 parent[key] = value
