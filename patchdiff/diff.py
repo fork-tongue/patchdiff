@@ -6,12 +6,121 @@ from .pointer import Pointer
 from .types import Diffable, Operation
 
 
+def _myers_script(a: list, b: list) -> list[tuple[str, int, int]]:
+    """Compute a shortest edit script between a and b with Myers' greedy
+    algorithm (An O(ND) Difference Algorithm and Its Variations, 1986).
+
+    Returns forward-ordered entries ("del", i, j) / ("ins", i, j) where
+    (i, j) are the pre-operation cursors: "del" removes a[i] while the
+    output cursor is at j, "ins" inserts b[j] at input cursor i. Runs of
+    equal elements produce no entries.
+
+    Time is O((m+n)·D) and memory O(D²) for D actual differences, so
+    nearly-equal lists are cheap regardless of their size — the worst
+    case (nothing in common) stays comparable to the old O(m·n) DP
+    table.
+    """
+    m, n = len(a), len(b)
+    if not m:
+        return [("ins", 0, j) for j in range(n)]
+    if not n:
+        return [("del", i, 0) for i in range(m)]
+
+    # v[offset + k] = furthest x reached on diagonal k (k = x - y) with
+    # the current number of edits d.
+    offset = m + n
+    v = [0] * (2 * offset + 2)
+    trace = []
+    d_final = -1
+    for d in range(offset + 1):
+        # Snapshot the diagonals the backtrack for round d needs (the
+        # state after round d-1); only [-d, d] is ever read.
+        trace.append(v[offset - d : offset + d + 1])
+        lo, hi = offset - d, offset + d
+        for vi in range(lo, hi + 1, 2):  # vi = offset + k
+            if vi == lo or (vi != hi and v[vi - 1] < v[vi + 1]):
+                x = v[vi + 1]  # step down: insertion
+            else:
+                x = v[vi - 1] + 1  # step right: deletion
+            y = x - vi + offset  # y = x - k
+            while x < m and y < n and a[x] == b[y]:  # follow the snake
+                x += 1
+                y += 1
+            v[vi] = x
+            if x >= m and y >= n:
+                d_final = d
+                break
+        if d_final >= 0:
+            break
+
+    # Backtrack from (m, n) to (0, 0), emitting one edit per round.
+    script: list[tuple[str, int, int]] = []
+    x, y = m, n
+    for d in range(d_final, 0, -1):
+        vprev = trace[d]  # covers k in [-d, d]; index with k + d
+        k = x - y
+        if k == -d or (k != d and vprev[k - 1 + d] < vprev[k + 1 + d]):
+            prev_k = k + 1  # arrived by insertion
+        else:
+            prev_k = k - 1  # arrived by deletion
+        prev_x = vprev[prev_k + d]
+        prev_y = prev_x - prev_k
+        if prev_k == k + 1:
+            script.append(("ins", prev_x, prev_y))
+        else:
+            script.append(("del", prev_x, prev_y))
+        x, y = prev_x, prev_y
+    script.reverse()
+    return script
+
+
+def _pad_ops(
+    intermediate: list[dict[str, Any]], list_len: int, ptr: Pointer
+) -> list[Operation]:
+    """Convert intermediate ops (absolute indices) into patch operations.
+
+    Operations apply sequentially, so every applied add shifts later
+    indices up by one and every remove shifts them down; `padding`
+    tracks that running offset. Replaces recurse through diff() so
+    paired containers turn into deep paths instead of wholesale element
+    replacement.
+    """
+    padded: list[Operation] = []
+    padding = 0
+    for op in intermediate:
+        kind = op["op"]
+        if kind == "add":
+            padded_idx = op["idx"] + 1 + padding
+            idx_token = padded_idx if padded_idx < list_len + padding else "-"
+            padded.append(
+                {
+                    "op": "add",
+                    "path": ptr.append(idx_token),
+                    "value": op["value"],
+                }
+            )
+            padding += 1
+        elif kind == "remove":
+            padded.append(
+                {
+                    "op": "remove",
+                    "path": ptr.append(op["idx"] + padding),
+                }
+            )
+            padding -= 1
+        else:  # replace
+            replace_ptr = ptr.append(op["idx"] + padding)
+            replace_ops, _ = diff(op["original"], op["value"], replace_ptr)
+            padded.extend(replace_ops)
+    return padded
+
+
 def diff_lists(
     input: list, output: list, ptr: Pointer
 ) -> tuple[list[Operation], list[Operation]]:
     m_full, n_full = len(input), len(output)
 
-    # Strip common prefix so the DP table only covers the changed region.
+    # Strip common prefix so the edit search only covers the changed region.
     prefix = 0
     prefix_limit = min(m_full, n_full)
     while prefix < prefix_limit and input[prefix] == output[prefix]:
@@ -28,133 +137,74 @@ def diff_lists(
 
     sub_input = input[prefix : m_full - suffix]
     sub_output = output[prefix : n_full - suffix]
-    m, n = len(sub_input), len(sub_output)
 
-    # Build DP table bottom-up (iterative approach)
-    # dp[i][j] = cost of transforming sub_input[0:i] to sub_output[0:j]
-    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    # Group the edit script into hunks: maximal runs of edits with no
+    # kept element in between. Within a hunk deletions come first (the
+    # backtrack's tie-breaking guarantees it), so hunk boundaries are
+    # exactly the places where an edit doesn't start at the previous
+    # edit's end cursor.
+    hunks: list[tuple[list[int], list[int], int, int]] = []
+    dels: list[int] = []
+    inss: list[int] = []
+    hunk_i = hunk_j = 0
+    post: tuple[int, int] | None = None
+    for kind, i, j in _myers_script(sub_input, sub_output):
+        if post is not None and (i, j) != post:
+            hunks.append((dels, inss, hunk_i, hunk_j))
+            dels, inss = [], []
+            post = None
+        if post is None:
+            hunk_i, hunk_j = i, j
+        if kind == "del":
+            dels.append(i)
+            post = (i + 1, j)
+        else:
+            inss.append(j)
+            post = (i, j + 1)
+    if dels or inss:
+        hunks.append((dels, inss, hunk_i, hunk_j))
 
-    # Initialize base cases
-    for i in range(1, m + 1):
-        dp[i][0] = i  # Cost of deleting all elements
-    for j in range(1, n + 1):
-        dp[0][j] = j  # Cost of adding all elements
-
-    # Fill DP table
-    for i in range(1, m + 1):
-        for j in range(1, n + 1):
-            if sub_input[i - 1] == sub_output[j - 1]:
-                # Elements match, no operation needed
-                dp[i][j] = dp[i - 1][j - 1]
-            else:
-                # Take minimum of three operations
-                dp[i][j] = min(
-                    dp[i - 1][j] + 1,  # Remove from input
-                    dp[i][j - 1] + 1,  # Add from output
-                    dp[i - 1][j - 1] + 1,  # Replace
-                )
-
-    # Traceback to extract operations. Indexes are emitted in sub-list
-    # coordinates and shifted by `prefix` below so they refer to positions
-    # in the original input/output.
+    # Emit intermediate operations per hunk: the k-th deletion pairs
+    # with the k-th insertion as a replace (recursed into by _pad_ops),
+    # the unpaired remainder becomes plain removes or adds. Indexes are
+    # emitted in sub-list coordinates and shifted by `prefix` so they
+    # refer to positions in the original input/output.
     ops: list[dict[str, Any]] = []
     rops: list[dict[str, Any]] = []
-    i, j = m, n
-
-    while i > 0 or j > 0:
-        if i > 0 and j > 0 and sub_input[i - 1] == sub_output[j - 1]:
-            # Elements match, no operation
-            i -= 1
-            j -= 1
-        elif i > 0 and (j == 0 or dp[i][j] == dp[i - 1][j] + 1):
-            # Remove from input
-            ops.append({"op": "remove", "idx": i - 1 + prefix})
-            rops.append({"op": "add", "idx": j - 1 + prefix, "value": sub_input[i - 1]})
-            i -= 1
-        elif j > 0 and (i == 0 or dp[i][j] == dp[i][j - 1] + 1):
-            # Add from output
-            ops.append({"op": "add", "idx": i - 1 + prefix, "value": sub_output[j - 1]})
-            rops.append({"op": "remove", "idx": j - 1 + prefix})
-            j -= 1
-        else:
-            # Replace
+    for dels, inss, hunk_i, hunk_j in hunks:
+        paired = min(len(dels), len(inss))
+        for t in range(paired):
+            di, sj = dels[t], inss[t]
             ops.append(
                 {
                     "op": "replace",
-                    "idx": i - 1 + prefix,
-                    "original": sub_input[i - 1],
-                    "value": sub_output[j - 1],
+                    "idx": di + prefix,
+                    "original": sub_input[di],
+                    "value": sub_output[sj],
                 }
             )
             rops.append(
                 {
                     "op": "replace",
-                    "idx": j - 1 + prefix,
-                    "original": sub_output[j - 1],
-                    "value": sub_input[i - 1],
+                    "idx": sj + prefix,
+                    "original": sub_output[sj],
+                    "value": sub_input[di],
                 }
             )
-            i -= 1
-            j -= 1
+        if len(dels) > paired:
+            # After the hunk the output cursor sits past its last
+            # insertion (or where the hunk started, if it had none).
+            add_idx = (inss[-1] if inss else hunk_j - 1) + prefix
+            for di in dels[paired:]:
+                ops.append({"op": "remove", "idx": di + prefix})
+                rops.append({"op": "add", "idx": add_idx, "value": sub_input[di]})
+        elif len(inss) > paired:
+            add_idx = (dels[-1] if dels else hunk_i - 1) + prefix
+            for sj in inss[paired:]:
+                ops.append({"op": "add", "idx": add_idx, "value": sub_output[sj]})
+                rops.append({"op": "remove", "idx": sj + prefix})
 
-    # Apply padding to operations (using explicit loops instead of reduce)
-    padded_ops: list[Operation] = []
-    padding = 0
-    # Iterate in reverse to get correct order (traceback extracts operations backwards)
-    for op in reversed(ops):
-        if op["op"] == "add":
-            padded_idx = op["idx"] + 1 + padding
-            idx_token = padded_idx if padded_idx < len(input) + padding else "-"
-            padded_ops.append(
-                {
-                    "op": "add",
-                    "path": ptr.append(idx_token),
-                    "value": op["value"],
-                }
-            )
-            padding += 1
-        elif op["op"] == "remove":
-            padded_ops.append(
-                {
-                    "op": "remove",
-                    "path": ptr.append(op["idx"] + padding),
-                }
-            )
-            padding -= 1
-        else:  # replace
-            replace_ptr = ptr.append(op["idx"] + padding)
-            replace_ops, _ = diff(op["original"], op["value"], replace_ptr)
-            padded_ops.extend(replace_ops)
-
-    padded_rops: list[Operation] = []
-    padding = 0
-    # Iterate in reverse to get correct order (traceback extracts operations backwards)
-    for op in reversed(rops):
-        if op["op"] == "add":
-            padded_idx = op["idx"] + 1 + padding
-            idx_token = padded_idx if padded_idx < len(output) + padding else "-"
-            padded_rops.append(
-                {
-                    "op": "add",
-                    "path": ptr.append(idx_token),
-                    "value": op["value"],
-                }
-            )
-            padding += 1
-        elif op["op"] == "remove":
-            padded_rops.append(
-                {
-                    "op": "remove",
-                    "path": ptr.append(op["idx"] + padding),
-                }
-            )
-            padding -= 1
-        else:  # replace
-            replace_ptr = ptr.append(op["idx"] + padding)
-            replace_ops, _ = diff(op["original"], op["value"], replace_ptr)
-            padded_rops.extend(replace_ops)
-
-    return padded_ops, padded_rops
+    return _pad_ops(ops, m_full, ptr), _pad_ops(rops, n_full, ptr)
 
 
 def diff_dicts(

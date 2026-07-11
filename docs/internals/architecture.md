@@ -15,15 +15,16 @@ A [`Pointer`][patchdiff.pointer.Pointer] is a tuple of reference tokens behind `
 
 `diff()` dispatches on duck type: both sides having `.append` means list, `.keys` means dict, `.add` means set — which is what lets observ proxies and other container look-alikes flow through unchanged. Everything else (scalars, tuples, frozensets, mismatched container kinds) is one `replace` op. The first check is always `input == output`; equal inputs short-circuit to empty patch lists.
 
-### Lists: DP edit script with prefix/suffix trimming
+### Lists: Myers edit script with prefix/suffix trimming
 
-`diff_lists` computes a minimal edit script in three steps:
+`diff_lists` computes a minimal edit script in four steps:
 
-1. **Trim.** The common prefix and suffix are stripped first, so the expensive part only covers the changed region — for the common case of a localized edit in a large list, this collapses the problem to a few elements.
-2. **DP table.** A classic O(m·n) Levenshtein-style table is built over the trimmed region, where `dp[i][j]` is the cost of transforming the first `i` input elements into the first `j` output elements (add, remove and replace all cost 1).
-3. **Traceback and padding.** Walking the table backwards yields the operations in reverse order, indexed in trimmed-sublist coordinates. A second pass re-emits them in application order while tracking a running `padding` offset: every applied `add` shifts subsequent indices up by one, every `remove` shifts them down. Adds that land past the end of the list become the `-` (append) token. When a `replace` pairs two containers, `diff` recurses into them with the element's pointer as the new prefix, so nested changes become deep paths instead of wholesale element replacement.
+1. **Trim.** The common prefix and suffix are stripped first — for the common case of a localized edit in a large list, this collapses the problem to a few elements before any real work happens.
+2. **Myers' greedy search.** Over the trimmed region, `_myers_script` runs Myers' O((m+n)·D) algorithm (*An O(ND) Difference Algorithm and Its Variations*, 1986): it explores diagonals of the edit graph, following "snakes" of equal elements for free, until it finds a shortest path of D insertions/deletions. Cost scales with the number of actual differences, not the product of the list sizes — nearly-equal lists are cheap regardless of length, and the worst case (nothing in common) stays comparable to the old O(m·n) DP table this replaced. Memory is O(D²) for the backtrack trace.
+3. **Hunks and replace pairing.** Myers scripts contain only insertions and deletions. Consecutive edits with no kept element in between are grouped into hunks, and within each hunk the k-th deletion is paired with the k-th insertion as a `replace` — restoring the replace semantics the DP produced. When a replace pairs two containers, `diff` recurses into them with the element's pointer as the new prefix, so nested changes become deep paths instead of wholesale element replacement. Unpaired remainders stay plain removes/adds.
+4. **Padding.** `_pad_ops` re-emits the operations in application order while tracking a running `padding` offset: every applied `add` shifts subsequent indices up by one, every `remove` shifts them down. Adds that land past the end of the list become the `-` (append) token.
 
-The reverse operations are built in the same traceback with input/output swapped, then ordered for reverse application.
+The reverse operations are built from the same hunks with input/output roles swapped, then padded against the output list.
 
 ### Dicts and sets
 
