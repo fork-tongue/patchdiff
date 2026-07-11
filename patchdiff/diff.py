@@ -16,15 +16,24 @@ def _myers_script(a: list, b: list) -> list[tuple[str, int, int]]:
     equal elements produce no entries.
 
     Time is O((m+n)·D) and memory O(D²) for D actual differences, so
-    nearly-equal lists are cheap regardless of their size — the worst
-    case (nothing in common) stays comparable to the old O(m·n) DP
-    table.
+    nearly-equal lists are cheap regardless of their size. To keep the
+    worst case (barely anything in common) from degenerating into a
+    quadratic search for a shortest script nobody benefits from, the
+    search gives up once D exceeds half the combined length — the lists
+    then share less than a quarter of their elements, and the whole
+    region is emitted as a single hunk (which the replace pairing turns
+    into element-wise replaces, exactly what the old DP produced for
+    such inputs). Small regions are always solved exactly.
     """
     m, n = len(a), len(b)
     if not m:
         return [("ins", 0, j) for j in range(n)]
     if not n:
         return [("del", i, 0) for i in range(m)]
+
+    max_cost = (m + n) // 2
+    if max_cost < 64:
+        max_cost = m + n  # always exact below the cutoff floor
 
     # v[offset + k] = furthest x reached on diagonal k (k = x - y) with
     # the current number of edits d.
@@ -33,6 +42,9 @@ def _myers_script(a: list, b: list) -> list[tuple[str, int, int]]:
     trace = []
     d_final = -1
     for d in range(offset + 1):
+        if d > max_cost:
+            # Too expensive: emit the whole region as one hunk.
+            return [("del", i, 0) for i in range(m)] + [("ins", m, j) for j in range(n)]
         # Snapshot the diagonals the backtrack for round d needs (the
         # state after round d-1); only [-d, d] is ever read.
         trace.append(v[offset - d : offset + d + 1])
