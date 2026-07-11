@@ -5,6 +5,12 @@ from typing import Any, cast
 from .pointer import Pointer
 from .types import Diffable, Operation
 
+# Types that are always diffed atomically (replaced wholesale): scalars,
+# plus tuples and frozensets, which diff() never descends into.
+_ATOMIC_TYPES = frozenset(
+    {int, float, complex, bool, str, bytes, type(None), tuple, frozenset}
+)
+
 
 def _myers_script(a: list, b: list) -> list[tuple[str, int, int]]:
     """Compute a shortest edit script between a and b with Myers' greedy
@@ -229,21 +235,29 @@ def diff_dicts(
 
     input_keys = set(input.keys()) if input else set()
     output_keys = set(output.keys()) if output else set()
+    child_ptr = ptr.append
 
     for key in input_keys - output_keys:
-        key_ptr = ptr.append(key)
+        key_ptr = child_ptr(key)
         ops.append({"op": "remove", "path": key_ptr})
         input_only_rops.append({"op": "add", "path": key_ptr, "value": input[key]})
     input_only_rops.reverse()
 
     for key in output_keys - input_keys:
-        key_ptr = ptr.append(key)
+        key_ptr = child_ptr(key)
         ops.append({"op": "add", "path": key_ptr, "value": output[key]})
         output_only_rops.append({"op": "remove", "path": key_ptr})
     output_only_rops.reverse()
 
     for key in input_keys & output_keys:
-        key_ops, key_rops = diff(input[key], output[key], ptr.append(key))
+        input_value = input[key]
+        output_value = output[key]
+        # Equal values recurse into an immediate empty result; checking
+        # here skips the call and the child pointer allocation, which is
+        # most of the work when few of many common keys changed.
+        if input_value == output_value:
+            continue
+        key_ops, key_rops = diff(input_value, output_value, child_ptr(key))
         ops.extend(key_ops)
         if key_rops:
             common_rops_chunks.append(key_rops)
@@ -266,14 +280,19 @@ def diff_sets(
     input_only_rops: list[Operation] = []
     output_only_rops: list[Operation] = []
 
+    # Pointers are immutable, so one "-" (append) pointer is shared by
+    # every add operation on this set.
+    dash_ptr = ptr.append("-")
+    child_ptr = ptr.append
+
     for value in input - output:
-        ops.append({"op": "remove", "path": ptr.append(value)})
-        input_only_rops.append({"op": "add", "path": ptr.append("-"), "value": value})
+        ops.append({"op": "remove", "path": child_ptr(value)})
+        input_only_rops.append({"op": "add", "path": dash_ptr, "value": value})
     input_only_rops.reverse()
 
     for value in output - input:
-        ops.append({"op": "add", "path": ptr.append("-"), "value": value})
-        output_only_rops.append({"op": "remove", "path": ptr.append(value)})
+        ops.append({"op": "add", "path": dash_ptr, "value": value})
+        output_only_rops.append({"op": "remove", "path": child_ptr(value)})
     output_only_rops.reverse()
 
     rops = output_only_rops + input_only_rops
@@ -308,12 +327,25 @@ def diff(
         return [], []
     if ptr is None:
         ptr = Pointer()
-    if hasattr(input, "append") and hasattr(output, "append"):  # list
-        return diff_lists(cast("list", input), cast("list", output), ptr)
-    if hasattr(input, "keys") and hasattr(output, "keys"):  # dict
-        return diff_dicts(cast("dict", input), cast("dict", output), ptr)
-    if hasattr(input, "add") and hasattr(output, "add"):  # set
-        return diff_sets(cast("set", input), cast("set", output), ptr)
+    # Exact-class dispatch first (the overwhelmingly common case), with
+    # an atomic-type short-circuit; the hasattr chain below stays as the
+    # fallback for container look-alikes such as observ proxies.
+    input_cls = input.__class__
+    output_cls = output.__class__
+    if input_cls is output_cls:
+        if input_cls is dict:
+            return diff_dicts(cast("dict", input), cast("dict", output), ptr)
+        if input_cls is list:
+            return diff_lists(cast("list", input), cast("list", output), ptr)
+        if input_cls is set:
+            return diff_sets(cast("set", input), cast("set", output), ptr)
+    if input_cls not in _ATOMIC_TYPES and output_cls not in _ATOMIC_TYPES:
+        if hasattr(input, "append") and hasattr(output, "append"):  # list
+            return diff_lists(cast("list", input), cast("list", output), ptr)
+        if hasattr(input, "keys") and hasattr(output, "keys"):  # dict
+            return diff_dicts(cast("dict", input), cast("dict", output), ptr)
+        if hasattr(input, "add") and hasattr(output, "add"):  # set
+            return diff_sets(cast("set", input), cast("set", output), ptr)
     return [{"op": "replace", "path": ptr, "value": output}], [
         {"op": "replace", "path": ptr, "value": input}
     ]
