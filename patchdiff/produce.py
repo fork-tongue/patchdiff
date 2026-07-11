@@ -296,6 +296,11 @@ class _Proxy:
 
     def _wrap(self, key: Hashable, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
+        # Scalars never need wrapping and never have a cached child proxy
+        # (cache entries only exist for container values), so skip both
+        # the cache lookup and the hasattr chain for them
+        if value.__class__ in _SCALAR_TYPES:
+            return value
         # Check cache first - it's faster than hasattr() calls
         proxies = self._proxies
         if proxies is not None and key in proxies:
@@ -383,6 +388,8 @@ class DictProxy(_Proxy):
 
     def __getitem__(self, key: Any) -> Any:
         value = self._data[key]
+        if value.__class__ in _SCALAR_TYPES:
+            return value
         return self._wrap(key, value)
 
     def __setitem__(self, key: Any, value: Any) -> None:
@@ -392,14 +399,17 @@ class DictProxy(_Proxy):
             self._detach(key)
         if value.__class__ not in _SCALAR_TYPES:
             value = self._adopt(key, value)
+        data = self._data
         tokens = self._location()
         if tokens is not None:
             path = Pointer((*tokens, key))
-            if key in self._data:
-                self._recorder.record_replace(path, self._data[key], value)
+            # One lookup instead of a containment check plus a read
+            old_value = data.get(key, _MISSING)
+            if old_value is not _MISSING:
+                self._recorder.record_replace(path, old_value, value)
             else:
                 self._recorder.record_add(path, value)
-        self._data[key] = value
+        data[key] = value
 
     def __delitem__(self, key: Any) -> None:
         old_value = self._data[key]
@@ -470,13 +480,17 @@ class DictProxy(_Proxy):
 
     def values(self):
         """Return proxied values so nested mutations are tracked."""
-        for key in self._data:
-            yield self._wrap(key, self._data[key])
+        scalar_types = _SCALAR_TYPES
+        wrap = self._wrap
+        for key, value in self._data.items():
+            yield value if value.__class__ in scalar_types else wrap(key, value)
 
     def items(self):
         """Return (key, proxied_value) pairs so nested mutations are tracked."""
-        for key in self._data:
-            yield key, self._wrap(key, self._data[key])
+        scalar_types = _SCALAR_TYPES
+        wrap = self._wrap
+        for key, value in self._data.items():
+            yield key, (value if value.__class__ in scalar_types else wrap(key, value))
 
     def __ior__(self, other):
         """Implement |= operator (merge update)."""
@@ -535,9 +549,12 @@ class ListProxy(_Proxy):
         value = self._data[index]
         if isinstance(index, slice):
             # Wrap each element in the slice so nested mutations are tracked
-            start, stop, step = index.indices(len(self._data))
-            indices = range(start, stop, step)
-            return [self._wrap(i, self._data[i]) for i in indices]
+            data = self._data
+            wrap = self._wrap
+            start, stop, step = index.indices(len(data))
+            return [wrap(i, data[i]) for i in range(start, stop, step)]
+        if value.__class__ in _SCALAR_TYPES:
+            return value
         # Resolve negative indices to positive for consistent caching and paths
         if index < 0:
             index = len(self._data) + index
@@ -676,16 +693,17 @@ class ListProxy(_Proxy):
             self._shift_cache(index + 1, -1)
 
     def append(self, value: Any) -> None:
+        data = self._data
         if value.__class__ not in _SCALAR_TYPES:
-            value = self._adopt(len(self._data), value)
+            value = self._adopt(len(data), value)
         tokens = self._location()
         if tokens is not None:
             # Forward patch uses "-" (append to end), reverse patch uses
             # the actual index
-            forward_path = Pointer((*tokens, "-"))
-            reverse_path = Pointer((*tokens, len(self._data)))
-            self._recorder.record_add(forward_path, value, reverse_path)
-        self._data.append(value)
+            self._recorder.record_add(
+                Pointer((*tokens, "-")), value, Pointer((*tokens, len(data)))
+            )
+        data.append(value)
 
     def insert(self, index: int, value: Any) -> None:
         # Normalize the index the same way list.insert does (clamped), so
@@ -814,13 +832,19 @@ class ListProxy(_Proxy):
 
     def __iter__(self):
         """Iterate over list elements, wrapping nested structures in proxies."""
-        for i in range(len(self._data)):
-            yield self._wrap(i, self._data[i])
+        scalar_types = _SCALAR_TYPES
+        wrap = self._wrap
+        for i, value in enumerate(self._data):
+            yield value if value.__class__ in scalar_types else wrap(i, value)
 
     def __reversed__(self):
         """Iterate in reverse, wrapping nested structures in proxies."""
-        for i in range(len(self._data) - 1, -1, -1):
-            yield self._wrap(i, self._data[i])
+        scalar_types = _SCALAR_TYPES
+        wrap = self._wrap
+        data = self._data
+        for i in range(len(data) - 1, -1, -1):
+            value = data[i]
+            yield value if value.__class__ in scalar_types else wrap(i, value)
 
     def __iadd__(self, other):
         """Implement += operator (in-place extend)."""

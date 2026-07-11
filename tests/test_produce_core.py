@@ -3,6 +3,7 @@
 import pytest
 
 from patchdiff import apply, produce
+from patchdiff.pointer import Pointer
 from patchdiff.produce import DictProxy, ListProxy, SetProxy
 
 
@@ -973,3 +974,20 @@ def test_snapshot_unwraps_proxy_passed_directly():
     assert type(snap) is dict
     assert snap == {"x": [1]}
     assert snap["x"] is not proxy._data["x"]
+
+
+def test_reading_scalars_and_atomics_from_draft():
+    """Reads of scalar and atomic (tuple/frozenset) values return them
+    unwrapped, via the proxies' scalar fast paths."""
+    base = {"n": 1, "t": (1, [2]), "items": [10, "x", (3, 4)]}
+
+    def recipe(draft):
+        assert draft["n"] == 1
+        assert draft["t"] == (1, [2])  # non-scalar atomic through _wrap
+        assert draft["items"][0] == 10  # scalar by list index
+        assert draft["items"][2] == (3, 4)
+        draft["n"] = draft["items"][0] + 1
+
+    result, patches, _reverse_patches = produce(base, recipe)
+    assert result["n"] == 11
+    assert patches == [{"op": "replace", "path": Pointer(["n"]), "value": 11}]
