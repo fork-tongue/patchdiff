@@ -40,3 +40,51 @@ The `produce-vs-diff` benchmark groups in the repository quantify the difference
 ## Use `in_place=True` for proxy-backed state
 
 For observ reactive objects (or anything where identity and write-through behavior matter), pass `in_place=True` to `produce` and use `iapply` rather than `apply` — both write through the original object instead of replacing it. See [Observ Integration](observ.md).
+
+## Keep the draft a tree, not a graph
+
+`produce` assumes the structure it's wrapping is a tree: every dict, list, or set reachable from the draft has exactly one path down from the root. Shared references (the same object reachable from two locations) and cycles aren't detected or specially handled, and they cause two distinct problems depending on where the sharing comes from.
+
+**Aliasing already in your base object is silently dropped by the default (copy) mode.** Immutable mode copies the structure key by key rather than as one graph-aware deep copy, so two keys that pointed at the same object going in point at two independent copies coming out — even if the recipe makes no changes at all:
+
+```python
+from patchdiff import produce
+
+shared = {"x": 1}
+base = {"a": shared, "b": shared}
+assert base["a"] is base["b"]  # aliased in your own data
+
+result, patches, reverse_patches = produce(base, lambda draft: None)  # no-op recipe
+
+assert result == {"a": {"x": 1}, "b": {"x": 1}}
+assert result["a"] is not result["b"]  # identity silently lost
+```
+
+If your data model relies on that shared reference (a config object reused across several slots, a node referenced from two places), the default mode quietly forks it. Use `in_place=True` if identity must survive — it mutates `base` directly, so pre-existing aliasing is preserved.
+
+**Aliasing does survive `in_place=True`, but the recorded patches still won't capture the full mutation.** Each proxy only records what it directly observes, so if two drafted locations share an object, a write made through one location is invisible to the other's patch trail:
+
+```python
+from patchdiff import produce, to_json
+
+shared = {"x": 1}
+base = {"a": shared, "b": shared}
+
+def recipe(draft):
+    draft["a"]["x"] = 2   # mutates the shared dict via the "a" proxy
+    draft["b"]["y"] = 3   # mutates the *same* shared dict via a separate "b" proxy
+
+result, patches, reverse_patches = produce(base, recipe, in_place=True)
+
+assert result["a"] is result["b"] == {"x": 2, "y": 3}   # identity preserved, both keys see both changes
+assert to_json(patches) == (
+    '[{"op": "replace", "path": "/a/x", "value": 2}, '
+    '{"op": "add", "path": "/b/y", "value": 3}]'
+)  # the patch list never mentions /b/x
+```
+
+`result` is correct in your process because it's the same object either way. But replay those `patches` against a fresh, non-aliased copy of `base` — which is what any JSON-based consumer gets, since JSON has no notion of shared references — and `/b/x` never gets set: the replayed state ends up as `{"a": {"x": 2}, "b": {"y": 3}}`, silently missing `/b/x`.
+
+The same reasoning applies to reference cycles (an object nested inside itself, directly or via another container): the draft's proxies track a parent chain and don't detect or break cycles, so building one during a recipe leads to unbounded recursion rather than a clean error.
+
+It's on you to keep the object graph you hand to `produce` acyclic and reference-free — i.e. a proper tree, not a graph. If the same data needs to live in two places, assign independent copies (`copy.deepcopy`, or your own constructor call) rather than the same object twice.
