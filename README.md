@@ -26,7 +26,7 @@ assert input == output
 print(to_json(ops, indent=4))
 ```
 
-## Don't diff, record
+## Proxy based patch generation
 
 When your own code makes the changes, `produce()` (inspired by [Immer](https://immerjs.github.io/immer/produce)) skips the comparison entirely: it hands your recipe a draft, records every mutation, and returns the result plus both patch directions. Cost scales with the number of mutations instead of the size of the state:
 
