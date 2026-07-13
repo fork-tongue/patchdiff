@@ -526,6 +526,71 @@ def test_produce_nested_structure(benchmark, in_place):
     benchmark(run)
 
 
+# --- Deep-Path Benchmarks ---
+
+
+DEEP_DEPTH = 12
+
+
+def _make_deep_dict(depth: int) -> dict:
+    """A chain of nested dicts with a small payload at the leaf."""
+    node: dict = {"value": 0, "tag": "leaf"}
+    for level in range(depth):
+        node = {"child": node, "level": level}
+    return node
+
+
+DEEP_BASE = _make_deep_dict(DEEP_DEPTH)
+
+
+def deep_leaf_writes_recipe(draft):
+    """Descend once, then write the leaf repeatedly: every write records
+    a patch whose path is DEEP_DEPTH+1 tokens long."""
+    node = draft
+    for _ in range(DEEP_DEPTH):
+        node = node["child"]
+    for i in range(100):
+        node["value"] = i + 1
+
+
+@pytest.mark.parametrize("in_place", [False, True], ids=["copy", "in_place"])
+@pytest.mark.benchmark(group="produce-deep")
+def test_produce_deep_leaf_writes(benchmark, in_place):
+    """Benchmark: produce() writing repeatedly at the bottom of a deep tree."""
+
+    def run():
+        data = copy.deepcopy(DEEP_BASE)
+        return produce(data, deep_leaf_writes_recipe, in_place=in_place)
+
+    benchmark(run)
+
+
+ITEM_LIST_BASE = {
+    "items": [{"id": i, "done": False, "meta": {"prio": i % 3}} for i in range(100)]
+}
+
+
+def item_field_updates_recipe(draft):
+    """Touch a field on every item of a list of dicts — the classic
+    'mark everything done' shape."""
+    for item in draft["items"]:
+        item["done"] = True
+        item["meta"]["prio"] = 0
+
+
+@pytest.mark.parametrize("in_place", [False, True], ids=["copy", "in_place"])
+@pytest.mark.benchmark(group="produce-deep")
+def test_produce_item_field_updates(benchmark, in_place):
+    """Benchmark: produce() updating a field on every element of a list
+    of nested dicts."""
+
+    def run():
+        data = copy.deepcopy(ITEM_LIST_BASE)
+        return produce(data, item_field_updates_recipe, in_place=in_place)
+
+    benchmark(run)
+
+
 # --- Set Benchmarks ---
 
 SET_BASE = set(range(500))

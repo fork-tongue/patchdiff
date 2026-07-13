@@ -120,6 +120,10 @@ class PatchRecorder:
     def __init__(self):
         self.patches: list[Operation] = []
         self.reverse_patches: list[Operation] = []
+        # Bumped on every structural change to the proxy tree (detach,
+        # re-attach, list index shifts); proxies use it to invalidate
+        # their memoized _location() results.
+        self.epoch: int = 0
 
     def finalize(self, root: "_Proxy") -> None:
         """Put the reverse patches in reverse application order and
@@ -132,6 +136,7 @@ class PatchRecorder:
         """
         self.reverse_patches.reverse()
         root._detached = True
+        self.epoch += 1
 
     def record_add(
         self, path: Pointer, value: Any, reverse_path: Pointer | None = None
@@ -210,6 +215,8 @@ class _Proxy:
         "_data",
         "_detached",
         "_key",
+        "_loc_epoch",
+        "_loc_tokens",
         "_parent",
         "_proxies",
         "_recorder",
@@ -219,6 +226,8 @@ class _Proxy:
     _data: Any
     _detached: bool
     _key: Any
+    _loc_epoch: int
+    _loc_tokens: tuple | None
     _parent: Any  # weakref.ref[_Proxy] | None
     _proxies: dict[Any, _Proxy] | None
     _recorder: PatchRecorder
@@ -235,6 +244,10 @@ class _Proxy:
         self._parent = ref(parent) if parent is not None else None
         self._key = key
         self._detached = False
+        # Memoized _location() result, valid while _loc_epoch matches the
+        # recorder's epoch (-1 = never computed)
+        self._loc_epoch = -1
+        self._loc_tokens = None
         # Child-proxy registry, allocated lazily on first wrap: most
         # proxies are leaves that never hand out children
         self._proxies = None
@@ -248,29 +261,38 @@ class _Proxy:
         or any of its ancestors has been detached from the draft (a dead
         parent reference counts as detached).
 
+        The result is memoized per proxy and recursively reuses the
+        parent's memoized location, so repeated writes into a stable tree
+        pay O(1) per write instead of walking to the root every time.
+        Every structural change (detach, re-attach, list index shifts)
+        bumps the recorder's epoch, which invalidates all memoized
+        locations at once.
+
         Returns a tuple so callers can build a child Pointer in a single
         allocation: Pointer((*tokens, key))."""
+        recorder = self._recorder
+        if self._loc_epoch == recorder.epoch:
+            return self._loc_tokens
+        tokens: tuple | None
         if self._detached:
-            return None
-        parent_ref = self._parent
-        if parent_ref is None:
-            return ()
-        node = parent_ref()
-        if node is None:
-            return None
-        tokens = [self._key]
-        while True:
-            if node._detached:
-                return None
-            parent_ref = node._parent
+            tokens = None
+        else:
+            parent_ref = self._parent
             if parent_ref is None:
-                break
-            tokens.append(node._key)
-            node = parent_ref()
-            if node is None:
-                return None
-        tokens.reverse()
-        return tuple(tokens)
+                tokens = ()
+            else:
+                node = parent_ref()
+                if node is None:
+                    tokens = None
+                else:
+                    parent_tokens = node._location()
+                    if parent_tokens is None:
+                        tokens = None
+                    else:
+                        tokens = (*parent_tokens, self._key)
+        self._loc_tokens = tokens
+        self._loc_epoch = recorder.epoch
+        return tokens
 
     def _wrap(self, key: Hashable, value: Any) -> Any:
         """Wrap nested structures in proxies using duck typing."""
@@ -303,6 +325,7 @@ class _Proxy:
         proxy = proxies.pop(key, None)
         if proxy is not None:
             proxy._detached = True
+            self._recorder.epoch += 1
 
     def _detach_all(self) -> None:
         if not self._proxies:
@@ -310,6 +333,7 @@ class _Proxy:
         for proxy in self._proxies.values():
             proxy._detached = True
         self._proxies.clear()
+        self._recorder.epoch += 1
 
     def _in_parent_chain(self, proxy: "_Proxy") -> bool:
         """True when proxy is self or an ancestor of self."""
@@ -343,6 +367,7 @@ class _Proxy:
                 value._detached = False
                 value._parent = ref(self)
                 value._key = key
+                self._recorder.epoch += 1
                 if self._proxies is None:
                     self._proxies = {}
                 self._proxies[key] = value
@@ -497,6 +522,7 @@ class ListProxy(_Proxy):
         after elements shifted in the underlying list."""
         if not self._proxies:
             return
+        self._recorder.epoch += 1
         shifted = {}
         for index, proxy in self._proxies.items():
             if index >= start:
@@ -739,6 +765,7 @@ class ListProxy(_Proxy):
         self._data.reverse()
         # Reindex handed-out child proxies to their new positions
         if self._proxies:
+            self._recorder.epoch += 1
             remapped = {}
             for index, proxy in self._proxies.items():
                 new_index = n - 1 - index
@@ -766,6 +793,7 @@ class ListProxy(_Proxy):
         # Reindex handed-out child proxies by following their element's
         # identity to its new position
         if self._proxies:
+            self._recorder.epoch += 1
             positions = {}
             for i, item in enumerate(self._data):
                 positions.setdefault(id(item), []).append(i)
