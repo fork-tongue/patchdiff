@@ -3,11 +3,17 @@
 
 # Patchdiff 🔍
 
-**Bidirectional, JSON-patch-compliant diffs between Python data structures.**
+Based on [rfc6902](https://github.com/chbrown/rfc6902) this library provides a simple API to generate bi-directional diffs between composite python datastructures composed out of lists, sets, tuples and dicts. The diffs are jsonpatch compliant, and can optionally be serialized to json format. Patchdiff can also be used to apply lists of patches to objects, both in-place or on a deepcopy of the input.
 
-📖 [Documentation](https://fork-tongue.github.io/patchdiff/) — [Quick Start](https://fork-tongue.github.io/patchdiff/getting-started/quick-start/) — [API Reference](https://fork-tongue.github.io/patchdiff/reference/api/)
+Documentation: https://fork-tongue.github.io/patchdiff/
 
-Patchdiff diffs composite structures of dicts, lists, sets and tuples, and gives you **both directions** in one call: the patches to get from `input` to `output`, and the patches to get back. Patches are [RFC 6902](https://datatracker.ietf.org/doc/html/rfc6902) JSON-patch style, serializable to JSON, and can be applied in place or to a copy — which makes undo/redo, change synchronization and state auditing one-liners.
+## Install
+
+`pip install patchdiff`
+
+No dependencies, requires python 3.9 or newer.
+
+## Quick-start
 
 ```python
 from patchdiff import apply, diff, iapply, to_json
@@ -17,18 +23,36 @@ output = {"a": [5, 2, 9, {"b", "c"}], "b": 6, "c": 7}
 
 ops, reverse_ops = diff(input, output)
 
-assert apply(input, ops) == output          # patch a copy...
-assert apply(output, reverse_ops) == input  # ...and it round-trips
+assert apply(input, ops) == output
+assert apply(output, reverse_ops) == input
 
-iapply(input, ops)  # or patch in place
+iapply(input, ops)  # apply in-place
 assert input == output
 
 print(to_json(ops, indent=4))
+# [
+#     {
+#         "op": "add",
+#         "path": "/c",
+#         "value": 7
+#     },
+#     {
+#         "op": "replace",
+#         "path": "/a/1",
+#         "value": 2
+#     },
+#     {
+#         "op": "remove",
+#         "path": "/a/3/a"
+#     }
+# ]
 ```
 
-## Don't diff — record
+Since every diff comes with its reverse, undo/redo and state synchronization are easy to build on top.
 
-When your own code makes the changes, `produce()` (inspired by [Immer](https://immerjs.github.io/immer/produce)) skips the comparison entirely: it hands your recipe a draft, records every mutation, and returns the result plus both patch directions. Cost scales with the number of mutations instead of the size of the state:
+## Proxy based patch generation
+
+As an alternative to diffing two objects, patchdiff can also record patches while mutations are being made, using a proxy mechanism. This is how [Immer](https://immerjs.github.io/immer/produce) works. It's much more efficient than diffing, since the cost scales with the number of mutations instead of the size of the data:
 
 ```python
 from patchdiff import produce
@@ -45,16 +69,4 @@ assert base == {"count": 0, "items": [1, 2, 3]}  # base is untouched
 assert result == {"count": 5, "items": [1, 2, 3, 4]}
 ```
 
-With `in_place=True`, mutations (and patches applied with `iapply`) write straight through proxy-backed state — the natural companion to [observ](https://github.com/fork-tongue/observ) reactive objects, where mutating through the proxy is what triggers watchers. See [Observ Integration](https://fork-tongue.github.io/patchdiff/guide/observ/) for reactive state with undo/redo.
-
-## Install
-
-```sh
-pip install patchdiff  # or: uv add patchdiff
-```
-
-No dependencies, Python >= 3.9.
-
-## Learn more
-
-The [documentation](https://fork-tongue.github.io/patchdiff/) covers [diffing semantics](https://fork-tongue.github.io/patchdiff/guide/diffing/), [applying patches](https://fork-tongue.github.io/patchdiff/guide/applying/), [JSON pointers](https://fork-tongue.github.io/patchdiff/guide/pointers/), [proxy-based patch generation](https://fork-tongue.github.io/patchdiff/guide/produce/), [serialization](https://fork-tongue.github.io/patchdiff/guide/serialization/) and the [gotchas](https://fork-tongue.github.io/patchdiff/guide/gotchas/), plus the [internals](https://fork-tongue.github.io/patchdiff/internals/architecture/) for the curious.
+With `in_place=True` mutations are applied directly to the input object through the proxy. This is what you want when combining patchdiff with [observ](https://github.com/fork-tongue/observ), since observ watchers only trigger when you mutate through the reactive proxy. See [observ integration](https://fork-tongue.github.io/patchdiff/guide/observ/) for an example with undo/redo.

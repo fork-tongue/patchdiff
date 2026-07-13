@@ -1,8 +1,8 @@
 # Quick Start
 
-This page walks through the whole API in a few minutes: diff two structures, apply the patches, undo them, and serialize them to JSON.
+This page walks through the whole API: diff two objects, apply the patches, undo them, and serialize them to json.
 
-## Diff two structures
+## Diffing
 
 [`diff`][patchdiff.diff.diff] compares two objects and returns two lists of operations: one that turns `input` into `output`, and one that turns `output` back into `input`.
 
@@ -15,7 +15,7 @@ output = {"a": [5, 2, 9, {"b", "c"}], "b": 6, "c": 7}
 ops, reverse_ops = diff(input, output)
 ```
 
-Each operation is a plain dict in JSON patch style — an `"op"` (`"add"`, `"remove"` or `"replace"`), a `"path"` (a [`Pointer`][patchdiff.pointer.Pointer]), and a `"value"` for adds and replaces:
+Each operation is a plain dict in jsonpatch style, with an `"op"` (`"add"`, `"remove"` or `"replace"`), a `"path"` (a [`Pointer`][patchdiff.pointer.Pointer]), and a `"value"` for adds and replaces:
 
 ```python
 from patchdiff import diff
@@ -27,9 +27,9 @@ assert ops == [{"op": "replace", "path": Pointer(["count"]), "value": 1}]
 assert reverse_ops == [{"op": "replace", "path": Pointer(["count"]), "value": 0}]
 ```
 
-## Apply patches
+## Applying patches
 
-[`apply`][patchdiff.apply.apply] patches a **deep copy** and leaves the original untouched; [`iapply`][patchdiff.apply.iapply] patches the object **in place**:
+[`apply`][patchdiff.apply.apply] patches a deepcopy and leaves the original untouched, while [`iapply`][patchdiff.apply.iapply] patches the object in-place:
 
 ```python
 from patchdiff import apply, diff, iapply
@@ -46,11 +46,11 @@ iapply(input, ops)  # in-place
 assert input == output
 ```
 
-Applying `reverse_ops` is your undo; re-applying `ops` is your redo.
+Applying `reverse_ops` is your undo, re-applying `ops` is your redo.
 
-## Serialize to JSON
+## Serializing to json
 
-Patches are JSON-patch compliant, so they can be serialized with [`to_json`][patchdiff.serialize.to_json] and shipped anywhere:
+Patches are jsonpatch compliant, so they can be serialized with [`to_json`][patchdiff.serialize.to_json]:
 
 ```python
 from patchdiff import diff, to_json
@@ -75,9 +75,9 @@ print(to_json(ops, indent=4))
 ]
 ```
 
-## Record patches while mutating
+## Recording patches while mutating
 
-When you're the one making the changes, you don't need to diff at all: [`produce`][patchdiff.produce.produce] hands you a draft, records every mutation you make to it, and gives you the result plus both patch directions — without a full comparison pass:
+When your own code is making the changes, you don't need to diff at all. [`produce`][patchdiff.produce.produce] hands you a draft, records every mutation you make to it, and gives you the result plus both patch directions, without a full comparison pass:
 
 ```python
 from patchdiff import produce
@@ -95,4 +95,4 @@ assert base == {"count": 0, "items": [1, 2, 3]}  # untouched
 assert result == {"count": 5, "items": [1, 2, 3, 4], "new_field": "hello"}
 ```
 
-Read on in the [Guide](../guide/diffing.md) for the details of each of these, or jump to the [API Reference](../reference/api.md).
+The [guide](../guide/diffing.md) goes into the details of each of these. The complete public API is in the [API reference](../reference/api.md).
