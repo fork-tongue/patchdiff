@@ -2,8 +2,8 @@
 
 Patchdiff can apply a list of operations to an object in two ways:
 
-* [`apply`][patchdiff.apply.apply] first makes a deepcopy, patches that, and returns it. The input is left untouched.
-* [`iapply`][patchdiff.apply.iapply] patches the object in-place and returns the same object. This is faster (no copy) and is what you want for objects that must keep their identity, such as observ reactive proxies.
+* [`apply`][patchdiff.apply.apply] first makes a **deep copy**, patches that, and returns it. The input is left untouched.
+* [`iapply`][patchdiff.apply.iapply] patches the object **in place** and returns the same object. This is faster (no copy) and is what you want for objects that must keep their identity, such as observ reactive proxies.
 
 ```python
 from patchdiff import apply, diff, iapply
@@ -63,7 +63,7 @@ assert state == {"count": 2}
 
 ## Patch values are copied on write
 
-When a patch is applied, its `"value"` is deepcopied before being written into the target. The patched object and the patch list never share mutable state, so you can keep patches around (on an undo stack for example) and freely mutate the object afterwards:
+When a patch is applied, its `"value"` is **deep-copied** before being written into the target. The patched object and the patch list never share mutable state, so you can keep patches around (on an undo stack for example) and freely mutate the object afterwards:
 
 ```python
 from patchdiff import diff, iapply

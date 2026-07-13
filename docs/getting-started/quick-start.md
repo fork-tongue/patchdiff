@@ -1,6 +1,6 @@
 # Quick Start
 
-This page walks through the whole API: diff two objects, apply the patches, undo them, and serialize them to json.
+This page walks through the whole API: diff two objects, apply the patches, undo them, and serialize them to JSON.
 
 ## Diffing
 
@@ -15,7 +15,7 @@ output = {"a": [5, 2, 9, {"b", "c"}], "b": 6, "c": 7}
 ops, reverse_ops = diff(input, output)
 ```
 
-Each operation is a plain dict in jsonpatch style, with an `"op"` (`"add"`, `"remove"` or `"replace"`), a `"path"` (a [`Pointer`][patchdiff.pointer.Pointer]), and a `"value"` for adds and replaces:
+Each operation is a plain dict in JSON patch style, with an `"op"` (`"add"`, `"remove"` or `"replace"`), a `"path"` (a [`Pointer`][patchdiff.pointer.Pointer]), and a `"value"` for adds and replaces:
 
 ```python
 from patchdiff import diff
@@ -29,7 +29,7 @@ assert reverse_ops == [{"op": "replace", "path": Pointer(["count"]), "value": 0}
 
 ## Applying patches
 
-[`apply`][patchdiff.apply.apply] patches a deepcopy and leaves the original untouched, while [`iapply`][patchdiff.apply.iapply] patches the object in-place:
+[`apply`][patchdiff.apply.apply] patches a **deep copy** and leaves the original untouched, while [`iapply`][patchdiff.apply.iapply] patches the object **in place**:
 
 ```python
 from patchdiff import apply, diff, iapply
@@ -48,9 +48,9 @@ assert input == output
 
 Applying `reverse_ops` is your undo, re-applying `ops` is your redo.
 
-## Serializing to json
+## Serializing to JSON
 
-Patches are jsonpatch compliant, so they can be serialized with [`to_json`][patchdiff.serialize.to_json]:
+Patches are JSON-patch compliant, so they can be serialized with [`to_json`][patchdiff.serialize.to_json]:
 
 ```python
 from patchdiff import diff, to_json

@@ -1,6 +1,6 @@
 # JSON Pointers
 
-Every operation's `"path"` is a [`Pointer`][patchdiff.pointer.Pointer], patchdiff's implementation of a json pointer ([RFC 6901](https://datatracker.ietf.org/doc/html/rfc6901)): a sequence of *reference tokens* that address a location inside a nested structure.
+Every operation's `"path"` is a [`Pointer`][patchdiff.pointer.Pointer], patchdiff's implementation of a JSON pointer ([RFC 6901](https://datatracker.ietf.org/doc/html/rfc6901)): a sequence of *reference tokens* that address a location inside a nested structure.
 
 ```python
 from patchdiff import diff
@@ -60,4 +60,4 @@ The walk to the parent is strict, so a missing intermediate raises. Only the *le
 
 ## Divergence from RFC 6901
 
-Strict json pointers only contain string tokens. Patchdiff pointers can hold arbitrary hashable values: integer list indices stay integers, and set members are addressed by the member value itself (see [diffing sets](diffing.md#sets)). Rendering to a string (or [`to_json`][patchdiff.serialize.to_json]) stringifies each token, which is lossy for non-string tokens. See [gotchas](gotchas.md).
+Strict JSON pointers only contain string tokens. Patchdiff pointers can hold **arbitrary hashable values**: integer list indices stay integers, and set members are addressed by the member value itself (see [diffing sets](diffing.md#sets)). Rendering to a string (or [`to_json`][patchdiff.serialize.to_json]) stringifies each token, which is lossy for non-string tokens. See [gotchas](gotchas.md).

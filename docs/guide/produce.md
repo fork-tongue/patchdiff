@@ -1,6 +1,6 @@
-# Proxy Based Patch Generation
+# Proxy-Based Patch Generation
 
-Diffing compares two complete states after the fact. When your own code is the thing making the changes, [`produce`][patchdiff.produce.produce] can skip the comparison entirely: it hands your recipe a proxy-wrapped *draft*, records every mutation as it happens, and emits the patches directly. The idea (and the name) come from [Immer](https://immerjs.github.io/immer/produce).
+Diffing compares two complete states after the fact. When your own code is the thing making the changes, [`produce`][patchdiff.produce.produce] can skip the comparison entirely: it hands your recipe a proxy-wrapped **draft**, records every mutation as it happens, and emits the patches directly. The idea (and the name) come from [Immer](https://immerjs.github.io/immer/produce).
 
 ```python
 from patchdiff import produce
@@ -33,7 +33,7 @@ For small mutations to large states this is much faster than diffing, because th
 
 ## Immutable by default
 
-By default the recipe operates on a copy: `base` stays untouched and `result` is a new object. The draft is only wrapped in proxies while the recipe runs; the returned `result` is plain data.
+By default the recipe operates on a **copy**: `base` stays untouched and `result` is a new object. The draft is only wrapped in proxies while the recipe runs; the returned `result` is plain data.
 
 ## In-place mutation
 
@@ -54,7 +54,7 @@ assert result is state  # same object
 assert state == {"count": 5}
 ```
 
-You still get both patch directions, so in-place mutation with undo/redo doesn't cost a deepcopy at all.
+You still get both patch directions, so in-place mutation with undo/redo doesn't cost a deep copy at all.
 
 ## What the draft supports
 
@@ -84,7 +84,7 @@ assert '"path": "/todos/1/done"' in to_json(patches)
 
 ## Snapshotting
 
-Values recorded into patches are snapshotted (deepcopied, with proxies unwrapped) at the moment the mutation happens. Mutating an object after assigning it into the draft won't retroactively change earlier patches, and patches never share mutable state with the draft or the result.
+Values recorded into patches are **snapshotted** (deep-copied, with proxies unwrapped) at the moment the mutation happens. Mutating an object after assigning it into the draft won't retroactively change earlier patches, and patches never share mutable state with the draft or the result.
 
 !!! note "The draft is only valid inside the recipe"
     When `produce` returns, all proxies are released. Don't hold on to the draft (or values read from it) for use outside the recipe; take what you need from `result` instead.

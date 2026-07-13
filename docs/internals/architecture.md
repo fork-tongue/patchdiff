@@ -4,7 +4,7 @@ This page documents how patchdiff works under the hood. Nothing here is part of 
 
 ## Pointers
 
-A [`Pointer`][patchdiff.pointer.Pointer] is a tuple of reference tokens behind `__slots__`. Immutability is what makes sharing safe: `append` builds a *new* pointer from `(*tokens, token)`, so the diff recursion can hand the same prefix pointer to many child operations without copies or aliasing bugs. Tokens are kept in their native python types (integers for list indices, arbitrary hashable values for set members) and only stringified, with RFC 6901 `~0`/`~1` escaping, when a pointer is rendered.
+A [`Pointer`][patchdiff.pointer.Pointer] is a tuple of reference tokens behind `__slots__`. Immutability is what makes sharing safe: `append` builds a *new* pointer from `(*tokens, token)`, so the diff recursion can hand the same prefix pointer to many child operations without copies or aliasing bugs. Tokens are kept in their native Python types (integers for list indices, arbitrary hashable values for set members) and only stringified, with RFC 6901 `~0`/`~1` escaping, when a pointer is rendered.
 
 `Pointer.evaluate` resolves a path in two phases with deliberately different strictness:
 
@@ -32,9 +32,9 @@ The reverse operations are built from the same hunks with input/output roles swa
 
 ## Applying
 
-`iapply` is a straight interpreter: for each patch it resolves `path.evaluate(obj)` to `(parent, key, _)`, then dispatches on the parent's duck type. Dict writes are direct. List writes convert numeric string keys (from parsed pointers) back to `int` and translate `add` at `-` into `append`. Set `add` inserts the value, set `remove` discards the *key* (the addressed element). Patch values are deepcopied before writing so the patch list and the patched object never share mutable state. `apply` is literally `iapply(deepcopy(obj), patches)`.
+`iapply` is a straight interpreter: for each patch it resolves `path.evaluate(obj)` to `(parent, key, _)`, then dispatches on the parent's duck type. Dict writes are direct. List writes convert numeric string keys (from parsed pointers) back to `int` and translate `add` at `-` into `append`. Set `add` inserts the value, set `remove` discards the *key* (the addressed element). Patch values are deep-copied before writing so the patch list and the patched object never share mutable state. `apply` is literally `iapply(deepcopy(obj), patches)`.
 
-## produce(): proxy based recording
+## produce(): proxy-based recording
 
 `produce()` wraps the draft in a proxy tree (`DictProxy` / `ListProxy` / `SetProxy`, dispatched by duck type) and lets the recipe mutate it. Three design decisions shape the implementation.
 
@@ -42,17 +42,17 @@ The reverse operations are built from the same hunks with input/output roles swa
 
 A proxy stores only its parent proxy and its key within that parent, never an absolute path. Its location is computed on demand by `_location()`, walking up to the root and collecting keys. This is what keeps recorded paths correct when the tree changes under a handed-out reference: when `insert(0, …)` shifts list elements, the list proxy renumbers the keys of its children (`_shift_cache`), and a child that was at index 0 now reports index 1. There is no stored path to invalidate.
 
-The walk is memoized: each proxy caches its location (reusing the parent's cached location recursively), and every structural change (a detach, a re-attach, a list index shift, `sort`/`reverse` re-keying, finalize) bumps an epoch counter on the recorder that invalidates all cached locations at once. Repeated writes into a stable tree therefore pay O(1) per write instead of an O(depth) walk, while any change that could move a proxy falls back to recomputation on the next write.
+The walk is **memoized**: each proxy caches its location (reusing the parent's cached location recursively), and every structural change (a detach, a re-attach, a list index shift, `sort`/`reverse` re-keying, finalize) bumps an epoch counter on the recorder that invalidates all cached locations at once. Repeated writes into a stable tree therefore pay O(1) per write instead of an O(depth) walk, while any change that could move a proxy falls back to recomputation on the next write.
 
 ### Detachment stops recording
 
 Each proxy keeps a registry (`_proxies`) of the child proxies it has handed out. Removing or replacing an element marks the corresponding child proxy *detached*: it still mutates its underlying data (so user code holding it keeps working), but `_location()` returns `None` and nothing gets recorded. Its data will be captured by the snapshot of whatever write re-inserts it. Re-inserting a *detached* proxy directly is a move: `_adopt` re-attaches it at the new location, and later mutations through the held reference record at the new path. Adopting a still-attached proxy (or one wrapping duck-typed data) snapshots instead, since a value can only live in one place.
 
-Parent links are weak references, so the proxy tree contains no cycles and is reclaimed by plain reference counting the moment `produce` returns. `PatchRecorder.finalize` additionally detaches the root, which severs every remaining proxy's path to the root: a proxy leaked out of the recipe can never append to the already-returned patch lists.
+Parent links are **weak references**, so the proxy tree contains no cycles and is reclaimed by plain reference counting the moment `produce` returns. `PatchRecorder.finalize` additionally detaches the root, which severs every remaining proxy's path to the root: a proxy leaked out of the recipe can never append to the already-returned patch lists.
 
 ### Values are snapshotted at record time
 
-Every non-scalar value that goes into a patch passes through `_snapshot`: a hand-rolled deepcopy for the json-like types (dict, list, set, frozenset, tuple), which also replaces nested proxies with copies of their data. Unknown types fall back to `copy.deepcopy`, which unwraps third-party proxies (like observ's) through their `__deepcopy__` hooks. Snapshotting at record time, not at finalize, is what makes patches immune to later mutations of the same object.
+Every non-scalar value that goes into a patch passes through `_snapshot`: a hand-rolled deep copy for the JSON-like types (dict, list, set, frozenset, tuple), which also replaces nested proxies with copies of their data. Unknown types fall back to `copy.deepcopy`, which unwraps third-party proxies (like observ's) through their `__deepcopy__` hooks. Snapshotting at record time, not at finalize, is what makes patches immune to later mutations of the same object.
 
 Forward patches are appended in order. Reverse patches are also appended (O(1)) and reversed once in `finalize`, since reverse application order is the mirror of forward order. `record_replace` compares old and new first and skips no-op writes entirely.
 

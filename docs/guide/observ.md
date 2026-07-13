@@ -1,6 +1,6 @@
 # Observ Integration
 
-[observ](https://github.com/fork-tongue/observ) provides reactive state for python: mutate a `reactive` proxy and watchers and computed values update automatically. Patchdiff turns those same mutations into patches, which is how you add undo/redo or change synchronization on top of reactive state.
+[observ](https://github.com/fork-tongue/observ) provides reactive state for Python: mutate a `reactive` proxy and watchers and computed values update automatically. Patchdiff turns those same mutations into patches, which is how you add **undo/redo or change synchronization on top of reactive state**.
 
 Patchdiff has no hard dependency on observ; everything on this page also works on plain dicts and lists.
 
@@ -34,7 +34,7 @@ assert observed == [5]          # ...and the watcher fired
 ```
 
 !!! note "Why `in_place=True`?"
-    Without it, `produce` copies the state and mutates the copy, so the reactive object stays untouched and no watcher fires. In-place mode is also faster, since it skips the deepcopy.
+    Without it, `produce` copies the state and mutates the copy, so the reactive object stays untouched and no watcher fires. In-place mode is also faster, since it skips the deep copy.
 
 ## Undo/redo for reactive state
 
@@ -78,7 +78,7 @@ ops, _ = diff(state, {"count": 1})
 assert to_json(ops) == '[{"op": "replace", "path": "/count", "value": 1}]'
 ```
 
-Patch values recorded from reactive state are snapshotted to plain data (observ proxies are unwrapped), so patches stay serializable and never keep reactive objects alive.
+Patch values recorded from reactive state are snapshotted to **plain data** (observ proxies are unwrapped), so patches stay serializable and never keep reactive objects alive.
 
 ## Installing both
 

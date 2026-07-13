@@ -1,8 +1,8 @@
 # Patchdiff 🔍
 
-Based on [rfc6902](https://github.com/chbrown/rfc6902) this library provides a simple API to generate bi-directional diffs between composite python datastructures composed out of lists, sets, tuples and dicts. The diffs are jsonpatch compliant, and can optionally be serialized to json format. Patchdiff has no dependencies and works on python 3.9 and up.
+Based on [rfc6902](https://github.com/chbrown/rfc6902) this library provides a simple API to generate **bi-directional** diffs between composite Python data structures composed out of lists, sets, tuples and dicts. The diffs are JSON-patch compliant, and can optionally be serialized to JSON format. Patchdiff has no dependencies and works on Python 3.9 and up.
 
-A single call to [`diff`][patchdiff.diff.diff] gives you the patches in both directions:
+A single call to [`diff`][patchdiff.diff.diff] gives you the patches in **both directions**:
 
 ```python
 from patchdiff import apply, diff
@@ -45,5 +45,5 @@ assert result == {"count": 5, "items": [1, 2, 3, 4]}
 
 ## Related projects
 
-* [observ](https://github.com/fork-tongue/observ): reactive state management for python. Patchdiff's `produce(..., in_place=True)` is designed to work with its reactive proxies.
-* [rfc6902](https://github.com/chbrown/rfc6902): the typescript library that patchdiff's diffing approach is based on.
+* [observ](https://github.com/fork-tongue/observ): reactive state management for Python. Patchdiff's `produce(..., in_place=True)` is designed to work with its reactive proxies.
+* [rfc6902](https://github.com/chbrown/rfc6902): the TypeScript library that patchdiff's diffing approach is based on.

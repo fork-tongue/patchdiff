@@ -1,6 +1,6 @@
 # Diffing
 
-[`diff`][patchdiff.diff.diff] recursively compares two objects and emits jsonpatch style operations in both directions:
+[`diff`][patchdiff.diff.diff] recursively compares two objects and emits JSON-patch style operations in **both directions**:
 
 ```python
 from patchdiff import apply, diff
@@ -15,7 +15,7 @@ The comparison starts with a plain equality check: if `input == output`, both li
 
 ## What gets compared structurally
 
-Containers are compared recursively when both sides are container-like. The check is duck-typed, so third-party proxies such as observ's reactive objects work too:
+Containers are compared recursively when **both sides** are container-like. The check is duck-typed, so third-party proxies such as observ's reactive objects work too:
 
 | both sides have | treated as | operations emitted |
 |---|---|---|
@@ -36,7 +36,7 @@ assert ops == [{"op": "replace", "path": Pointer(["t"]), "value": (1, 3)}]
 
 ## Lists
 
-List diffing computes a minimal edit script (fewest adds/removes/replaces) between the two lists. Common prefixes and suffixes are stripped first, so localized changes in large lists stay cheap. When a replace pairs up two containers, patchdiff recurses into them instead of replacing the whole element:
+List diffing computes a **minimal edit script** (fewest adds/removes/replaces) between the two lists. Common prefixes and suffixes are stripped first, so localized changes in large lists stay cheap. When a replace pairs up two containers, patchdiff recurses into them instead of replacing the whole element:
 
 ```python
 from patchdiff import diff, to_json
@@ -76,7 +76,7 @@ assert to_json(ops) == '[{"op": "replace", "path": "/user/age", "value": 41}]'
 
 ## Sets
 
-Sets have no indices or keys, so patchdiff extends jsonpatch slightly: an element is added with the `-` token (like a list append) and removed by addressing the element itself as the final path token:
+Sets have no indices or keys, so patchdiff extends JSON patch slightly: an element is **added** with the `-` token (like a list append) and **removed** by addressing the element itself as the final path token:
 
 ```python
 from patchdiff import diff
@@ -94,7 +94,7 @@ See [gotchas](gotchas.md) for the places where this deliberately diverges from s
 
 ## Reverse operations
 
-The second list that `diff` returns is not just the first with `add`/`remove` swapped. The operations are also ordered for reverse application, so that indices resolve correctly as each patch is applied. Always apply `reverse_ops` as-is, in order:
+The second list that `diff` returns is not just the first with `add`/`remove` swapped. The operations are also **ordered for reverse application**, so that indices resolve correctly as each patch is applied. Always apply `reverse_ops` as-is, in order:
 
 ```python
 from patchdiff import apply, diff
