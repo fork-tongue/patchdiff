@@ -1,6 +1,6 @@
 [project]
 name = "patchdiff"
-version = "0.3.12"
+version = "1.0.0"
 description = "Bidirectional, JSON-patch-compliant diffs between Python data structures"
 authors = [
     { name = "Korijn van Golen", email = "korijn@gmail.com" },
