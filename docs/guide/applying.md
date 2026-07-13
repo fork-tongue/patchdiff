@@ -2,7 +2,7 @@
 
 Patchdiff can apply a list of operations to an object in two ways:
 
-* [`apply`][patchdiff.apply.apply] first makes a **deep copy**, patches that, and returns it — the input is left untouched.
+* [`apply`][patchdiff.apply.apply] first makes a **deep copy**, patches that, and returns it. The input is left untouched.
 * [`iapply`][patchdiff.apply.iapply] patches the object **in place** and returns the same object. This is faster (no copy) and is what you want for objects that must keep their identity, such as observ reactive proxies.
 
 ```python
@@ -24,11 +24,11 @@ assert input == output
 
 ## Order matters
 
-Operations are applied sequentially, and paths refer to the state of the object *at that point in the sequence* — exactly like RFC 6902. List indices in particular shift as adds and removes are applied, and both lists that [`diff`][patchdiff.diff.diff] returns are already ordered accordingly. Apply them as-is; don't reorder or cherry-pick individual operations.
+Operations are applied sequentially, and paths refer to the state of the object at that point in the sequence, just like in RFC 6902. List indices in particular shift as adds and removes are applied. Both lists that [`diff`][patchdiff.diff.diff] returns are already ordered accordingly, so apply them as-is. Don't reorder or cherry-pick individual operations.
 
 ## Undo and redo
 
-Because every diff comes with its reverse, undo/redo is just a pair of stacks of patch lists:
+Since every diff comes with its reverse, undo/redo is just a pair of stacks of patch lists:
 
 ```python
 from patchdiff import diff, iapply
@@ -63,7 +63,7 @@ assert state == {"count": 2}
 
 ## Patch values are copied on write
 
-When a patch is applied, its `"value"` is **deep-copied** before being written into the target. The patched object and the patch list therefore never share mutable state — you can keep patches around (say, on an undo stack) and freely mutate the object afterwards:
+When a patch is applied, its `"value"` is **deep-copied** before being written into the target. The patched object and the patch list never share mutable state, so you can keep patches around (on an undo stack for example) and freely mutate the object afterwards:
 
 ```python
 from patchdiff import diff, iapply

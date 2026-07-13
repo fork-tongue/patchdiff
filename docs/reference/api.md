@@ -1,6 +1,6 @@
 # API Reference
 
-The public API is small: two ways to obtain patches ([`diff`][patchdiff.diff.diff] and [`produce`][patchdiff.produce.produce]), two ways to apply them ([`apply`][patchdiff.apply.apply] and [`iapply`][patchdiff.apply.iapply]), and serialization helpers. All of these are importable directly from `patchdiff`; the [`Pointer`][patchdiff.pointer.Pointer] class lives in `patchdiff.pointer`.
+The public API is small: two ways to obtain patches ([`diff`][patchdiff.diff.diff] and [`produce`][patchdiff.produce.produce]), two ways to apply them ([`apply`][patchdiff.apply.apply] and [`iapply`][patchdiff.apply.iapply]), and serialization helpers. All of these can be imported directly from `patchdiff`. The [`Pointer`][patchdiff.pointer.Pointer] class lives in `patchdiff.pointer`.
 
 ## Diffing
 

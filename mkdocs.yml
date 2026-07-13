@@ -1,5 +1,5 @@
 site_name: Patchdiff
-site_description: Bidirectional, JSON-patch-compliant diffs between Python data structures
+site_description: Bi-directional, JSON-patch compliant diffs between composite Python data structures
 site_url: https://fork-tongue.github.io/patchdiff
 repo_url: https://github.com/fork-tongue/patchdiff
 repo_name: fork-tongue/patchdiff
@@ -59,7 +59,7 @@ nav:
       - Proxy-Based Patch Generation: guide/produce.md
       - Serialization: guide/serialization.md
       - Observ Integration: guide/observ.md
-      - Gotchas and Best Practices: guide/gotchas.md
+      - Gotchas: guide/gotchas.md
   - Reference:
       - API Reference: reference/api.md
   - Internals:
