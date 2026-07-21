@@ -6,7 +6,7 @@ authors = [
     { name = "Korijn van Golen", email = "korijn@gmail.com" },
     { name = "Berend Klein Haneveld", email = "berendkleinhaneveld@gmail.com" },
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.13"
 readme = "README.md"
 license = "MIT"
 classifiers = ["Typing :: Typed"]
@@ -42,6 +42,7 @@ extend-select = [
     "N",    # pep8-naming
     "T10",  # flake8-debugger
     "T20",  # flake8-print
+    "UP",   # pyupgrade (keep syntax modern for the supported Python floor)
     "RUF",  # ruff
 ]
 
@@ -56,7 +57,7 @@ include = ["patchdiff"]
 [tool.ty.environment]
 # Match the oldest supported Python version (requires-python), so
 # that the type checker catches use of newer typing features
-python-version = "3.9"
+python-version = "3.13"
 
 [build-system]
 requires = ["hatchling"]

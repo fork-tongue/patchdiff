@@ -53,7 +53,7 @@ With `in_place=True`, mutations (and patches applied with `iapply`) write straig
 pip install patchdiff  # or: uv add patchdiff
 ```
 
-No dependencies, Python >= 3.9.
+No dependencies, Python >= 3.13.
 
 ## Learn more
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Hashable, Iterable, cast
+from collections.abc import Hashable, Iterable
+from typing import Any, cast
 
 from .types import Diffable
 
@@ -35,7 +36,7 @@ class Pointer:
         self.tokens = tuple(tokens)
 
     @staticmethod
-    def from_str(path: str) -> "Pointer":
+    def from_str(path: str) -> Pointer:
         """Parse an escaped JSON pointer string (e.g. `"/a/0/b"`) into a Pointer.
 
         All tokens are parsed as strings; numeric list indices become
@@ -104,6 +105,6 @@ class Pointer:
                 cursor = None
         return parent, key, cursor
 
-    def append(self, token: Hashable) -> "Pointer":
+    def append(self, token: Hashable) -> Pointer:
         """Return a new Pointer with `token` appended; self is unchanged."""
         return Pointer((*self.tokens, token))
