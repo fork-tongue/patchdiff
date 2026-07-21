@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 if TYPE_CHECKING:
     from .pointer import Pointer
 
 # The structures patchdiff diffs and patches. Consumers may also pass
 # duck-typed container look-alikes (e.g. observ reactive proxies).
-Diffable = Union[dict, list, set]
+type Diffable = dict | list | set
 
 
 class AddOperation(TypedDict):
@@ -33,4 +33,4 @@ class ReplaceOperation(TypedDict):
     value: Any
 
 
-Operation = Union[AddOperation, RemoveOperation, ReplaceOperation]
+type Operation = AddOperation | RemoveOperation | ReplaceOperation

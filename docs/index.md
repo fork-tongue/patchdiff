@@ -1,6 +1,6 @@
 # Patchdiff 🔍
 
-Based on [rfc6902](https://github.com/chbrown/rfc6902) this library provides a simple API to generate **bi-directional** diffs between composite Python data structures composed out of lists, sets, tuples and dicts. The diffs are JSON-patch compliant, and can optionally be serialized to JSON format. Patchdiff has no dependencies and works on Python 3.9 and up.
+Based on [rfc6902](https://github.com/chbrown/rfc6902) this library provides a simple API to generate **bi-directional** diffs between composite Python data structures composed out of lists, sets, tuples and dicts. The diffs are JSON-patch compliant, and can optionally be serialized to JSON format. Patchdiff has no dependencies and works on Python 3.13 and up.
 
 A single call to [`diff`][patchdiff.diff.diff] gives you the patches in **both directions**:
 

@@ -12,6 +12,6 @@ Or with [uv](https://docs.astral.sh/uv/):
 uv add patchdiff
 ```
 
-There are no dependencies. Python 3.9 or newer is required.
+There are no dependencies. Python 3.13 or newer is required.
 
 Next up: the [quick start](quick-start.md).

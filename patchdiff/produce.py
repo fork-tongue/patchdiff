@@ -13,8 +13,9 @@ is captured by the snapshot of whatever write re-inserts it later.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Hashable
 from copy import deepcopy
-from typing import Any, Callable, Hashable
+from typing import Any
 from weakref import ref
 
 from .pointer import Pointer
@@ -125,7 +126,7 @@ class PatchRecorder:
         # their memoized _location() results.
         self.epoch: int = 0
 
-    def finalize(self, root: "_Proxy") -> None:
+    def finalize(self, root: _Proxy) -> None:
         """Put the reverse patches in reverse application order and
         detach the root proxy.
 
@@ -236,7 +237,7 @@ class _Proxy:
         self,
         data: Any,
         recorder: PatchRecorder,
-        parent: "_Proxy" | None = None,
+        parent: _Proxy | None = None,
         key: Hashable = None,
     ):
         self._data = data
@@ -340,7 +341,7 @@ class _Proxy:
         self._proxies.clear()
         self._recorder.epoch += 1
 
-    def _in_parent_chain(self, proxy: "_Proxy") -> bool:
+    def _in_parent_chain(self, proxy: _Proxy) -> bool:
         """True when proxy is self or an ancestor of self."""
         node = self
         while node is not None:
